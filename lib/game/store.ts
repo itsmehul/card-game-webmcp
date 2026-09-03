@@ -2,34 +2,59 @@
 
 import { useSyncExternalStore } from "react";
 import {
+  allIn,
   applyHumanLegalAction,
+  awardChips,
+  awardPot,
   capture,
   chipAction,
+  collectSets,
+  computePots,
   createSession,
   deal,
+  dealBatch,
   dealToPlay,
   discard,
   draw,
   getHumanView,
   getOmniscientState,
+  moveTurn,
   narrate,
   play,
+  playAll,
+  postBlinds,
+  resetBettingRound,
+  resetHand,
   reveal,
   rotateTurn,
   setLegalActions,
   setMode,
   setPhase,
+  setTurn,
   setInstructions,
   shuffle,
+  sweepZone,
+  transfer,
 } from "./engine";
-import { createTexasHoldem } from "./presets/texas-holdem";
+import { compareZone, findSets, scoreHand } from "./scoring";
+import {
+  createFromPreset,
+  isKnownPreset,
+  startPresetSession,
+} from "./presets";
 import type {
   ChipActionKind,
   CreateGameOptions,
+  DealSpec,
   GameSession,
+  HandScoring,
   LegalAction,
+  SeatTarget,
   SessionMode,
+  SweepSpec,
+  TransferSpec,
   Visibility,
+  ZoneKind,
 } from "./types";
 
 type Listener = () => void;
@@ -64,14 +89,18 @@ export const gameStore = {
   },
   createGame(options: CreateGameOptions): GameSession {
     const next =
-      options.preset === "texas-holdem"
-        ? createTexasHoldem(options)
+      options.preset && isKnownPreset(options.preset)
+        ? createFromPreset(options.preset, options)
         : createSession(options);
     setSession(next);
     return next;
   },
-  startTexasHoldem(mode: SessionMode = "practice", botCount = 2) {
-    const next = createTexasHoldem({ mode, botCount });
+  startPreset(
+    id: string,
+    mode: SessionMode = "practice",
+    botCount?: number,
+  ) {
+    const next = startPresetSession(id, mode, botCount);
     setSession(next);
     return next;
   },
@@ -121,6 +150,71 @@ export const gameStore = {
     setSession(rotateTurn(requireSession()));
     return session!;
   },
+  setTurn(playerId: string) {
+    setSession(setTurn(requireSession(), playerId));
+    return session!;
+  },
+  moveTurn(target: SeatTarget | "next" | "previous" | "same" | "first") {
+    setSession(moveTurn(requireSession(), target));
+    return session!;
+  },
+  dealBatch(specs: DealSpec[]) {
+    setSession(dealBatch(requireSession(), specs));
+    return session!;
+  },
+  transfer(spec: TransferSpec) {
+    setSession(transfer(requireSession(), spec));
+    return session!;
+  },
+  playAll(count?: number, visibility?: Visibility) {
+    setSession(playAll(requireSession(), count, visibility));
+    return session!;
+  },
+  sweepZone(spec: SweepSpec) {
+    setSession(sweepZone(requireSession(), spec));
+    return session!;
+  },
+  collectSets(playerId: string, size?: number, toZone?: ZoneKind) {
+    const result = collectSets(requireSession(), playerId, size, toZone);
+    setSession(result.session);
+    return { session: session!, sets: result.sets };
+  },
+  findSets(playerId: string, size: number) {
+    return findSets(requireSession(), playerId, size);
+  },
+  scoreHand(playerId: string, scoring?: HandScoring) {
+    return scoreHand(requireSession(), playerId, scoring);
+  },
+  compareZone(zone?: ZoneKind) {
+    return compareZone(requireSession(), zone);
+  },
+  postBlinds(blinds: Array<{ playerId: string; amount: number }>) {
+    setSession(postBlinds(requireSession(), blinds));
+    return session!;
+  },
+  allIn(playerId: string) {
+    setSession(allIn(requireSession(), playerId));
+    return session!;
+  },
+  computePots() {
+    return computePots(requireSession());
+  },
+  awardPot(winnerIds: string[], amount?: number) {
+    setSession(awardPot(requireSession(), winnerIds, amount));
+    return session!;
+  },
+  awardChips(playerId: string, amount: number) {
+    setSession(awardChips(requireSession(), playerId, amount));
+    return session!;
+  },
+  resetBettingRound() {
+    setSession(resetBettingRound(requireSession()));
+    return session!;
+  },
+  resetHand() {
+    setSession(resetHand(requireSession()));
+    return session!;
+  },
   setPhase(phase: string) {
     setSession(setPhase(requireSession(), phase));
     return session!;
@@ -162,18 +256,22 @@ export const gameStore = {
       | "draw"
       | "deal_all"
       | "play"
+      | "play_all"
       | "discard"
       | "capture"
+      | "collect_sets"
       | "reveal"
       | "pass"
       | "fold"
       | "check"
       | "call"
       | "bet"
-      | "raise";
+      | "raise"
+      | "all_in";
     cardIds?: string[];
     count?: number;
     amount?: number;
+    setSize?: number;
     visibility?: Visibility;
     fromAgent?: boolean;
   }) {
@@ -218,8 +316,14 @@ export const gameStore = {
           input.cardIds ?? [],
           input.visibility,
         );
+      case "play_all":
+        return this.playAll(input.count ?? 1, input.visibility ?? "public");
+      case "collect_sets":
+        return this.collectSets(input.playerId, input.setSize ?? 4).session;
       case "reveal":
         return this.reveal(input.cardIds ?? [], input.visibility);
+      case "all_in":
+        return this.allIn(input.playerId);
       case "fold":
       case "check":
       case "call":

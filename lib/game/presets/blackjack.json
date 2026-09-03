@@ -1,0 +1,79 @@
+{
+  "id": "blackjack",
+  "name": "Blackjack",
+  "summary": "Hit or stand against the dealer, with live soft totals and automatic bust detection.",
+  "botCount": 1,
+  "jokers": false,
+  "chips": true,
+  "startingStack": 500,
+  "turnDirection": "clockwise",
+  "enabledZones": {
+    "stock": true,
+    "hand": true,
+    "play": false,
+    "discard": true,
+    "capture": false
+  },
+  "phase": "waiting_to_deal",
+  "legalActions": [
+    {
+      "id": "deal",
+      "label": "Deal hands",
+      "primitive": "deal_spec",
+      "dealSpec": [
+        { "target": "human", "count": 2, "visibility": "hidden" },
+        { "target": "bot_1", "count": 1, "visibility": "public" },
+        { "target": "bot_1", "count": 1, "visibility": "unknown" }
+      ],
+      "nextPhase": "player_act",
+      "nextActions": [
+        {
+          "id": "hit",
+          "label": "Hit",
+          "primitive": "draw",
+          "count": 1,
+          "visibility": "hidden",
+          "branches": [
+            {
+              "when": {
+                "subject": "hand_busted",
+                "scoring": { "aceAlt": 11, "bustOver": 21 }
+              },
+              "nextPhase": "bust",
+              "nextActions": [],
+              "narration": "Bust! Ask the agent to settle the wager."
+            },
+            {
+              "when": {
+                "subject": "hand_score",
+                "op": "eq",
+                "value": 21,
+                "scoring": { "aceAlt": 11, "bustOver": 21 }
+              },
+              "nextPhase": "dealer_act",
+              "nextActions": [],
+              "turnTarget": "bot_1",
+              "narration": "21. Dealer plays — ask the agent to finish."
+            },
+            {
+              "when": { "subject": "always" },
+              "narration": "You hit. Hit again or stand."
+            }
+          ]
+        },
+        {
+          "id": "stand",
+          "label": "Stand",
+          "primitive": "pass",
+          "nextPhase": "dealer_act",
+          "nextActions": [],
+          "turnTarget": "bot_1",
+          "narration": "You stand. Dealer's turn — ask the agent to finish."
+        }
+      ],
+      "narration": "Hands dealt. The dealer shows one card. Hit or stand."
+    }
+  ],
+  "instructions": "You get two cards face down, the dealer gets one up and one down. Hit to draw; the table detects a bust or a 21 on its own and ends your turn. Stand passes play to the dealer. Ask the agent to play the dealer with score_hand (aceAlt 11, bustOver 21) and settle with award_chips.",
+  "openingNarration": "Blackjack ready. Deal hands, then hit or stand."
+}

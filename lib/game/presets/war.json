@@ -1,0 +1,73 @@
+{
+  "id": "war",
+  "name": "War",
+  "summary": "Both sides flip at once; the higher card sweeps the pile into a capture stack.",
+  "botCount": 1,
+  "jokers": false,
+  "chips": false,
+  "turnDirection": "clockwise",
+  "enabledZones": {
+    "stock": true,
+    "hand": true,
+    "play": true,
+    "discard": false,
+    "capture": true
+  },
+  "phase": "waiting_to_deal",
+  "legalActions": [
+    {
+      "id": "deal",
+      "label": "Split the deck",
+      "primitive": "deal_all",
+      "count": 26,
+      "visibility": "hidden",
+      "nextPhase": "ready_to_flip",
+      "nextActions": [
+        {
+          "id": "flip",
+          "label": "Flip",
+          "primitive": "play_all",
+          "count": 1,
+          "visibility": "public",
+          "branches": [
+            {
+              "when": { "subject": "zone_count", "zone": "play", "op": "eq", "value": 0 },
+              "nextPhase": "out_of_cards",
+              "nextActions": [],
+              "narration": "No cards left to flip. Count the capture piles."
+            },
+            {
+              "when": { "subject": "always" },
+              "nextPhase": "compare",
+              "narration": "Both sides flip. Award the battle, or declare war on a tie."
+            }
+          ]
+        },
+        {
+          "id": "resolve",
+          "label": "Award the battle",
+          "primitive": "sweep",
+          "sweep": {
+            "fromZone": "play",
+            "to": "winner",
+            "toZone": "capture"
+          },
+          "nextPhase": "ready_to_flip",
+          "narration": "The higher card takes the pile."
+        },
+        {
+          "id": "war",
+          "label": "War (tie)",
+          "primitive": "play_all",
+          "count": 2,
+          "visibility": "public",
+          "nextPhase": "war",
+          "narration": "Tie — two more cards each. Award the battle again."
+        }
+      ],
+      "narration": "Deck split 26 each. Flip to start."
+    }
+  ],
+  "instructions": "The deck splits evenly. Flip turns one card from every hand face up at once. Award the battle sends the whole play area to whoever showed the higher card; on a tie the award errors, so use War to add two more cards each and award again. Ask the agent to call compare_zone to narrate who is ahead.",
+  "openingNarration": "War ready. Split the deck, then flip."
+}

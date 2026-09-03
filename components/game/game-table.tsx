@@ -9,6 +9,7 @@ import { StockPile } from "@/components/zones/stock-pile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { GameCatalog } from "@/components/game/game-catalog";
 import { TableSidebars } from "@/components/game/instructions-sidebar";
 import { WebMCPStatus } from "@/components/webmcp/webmcp-status";
 import { WebMCPTools } from "@/components/webmcp/webmcp-tools";
@@ -140,28 +141,12 @@ export function GameTable() {
           />
         )}
         {!session || !view ? (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-          <p className="max-w-md text-emerald-200/80">
-            Create Texas Hold&apos;em to start, or ask a coding agent over WebMCP
-            to create any card game.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button
-              onClick={() =>
-                runSafe(() => gameStore.startTexasHoldem("practice", 2))
-              }
-            >
-              Start Texas Hold&apos;em (Practice)
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                runSafe(() => gameStore.startTexasHoldem("tutorial", 2))
-              }
-            >
-              Start Tutorial
-            </Button>
-          </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+          <GameCatalog
+            onStart={(id, mode) =>
+              runSafe(() => gameStore.startPreset(id, mode))
+            }
+          />
         </div>
       ) : (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4">

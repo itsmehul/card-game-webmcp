@@ -1,12 +1,154 @@
 "use client";
 
 import { useWebMCP } from "usewebmcp";
-import { gameStore, type LegalAction } from "@/lib/game";
+import {
+  gameStore,
+  listPresetIds,
+  listPresets,
+  type DealSpec,
+  type HandScoring,
+  type LegalAction,
+  type SweepSpec,
+  type TransferSpec,
+  type Visibility,
+  type ZoneKind,
+} from "@/lib/game";
 
 const EMPTY_SCHEMA = {
   type: "object",
   properties: {},
 } as const;
+
+const PRESET_IDS = listPresetIds() as [string, ...string[]];
+
+const VISIBILITY = {
+  type: "string",
+  enum: ["hidden", "public", "unknown"],
+} as const;
+
+const ZONE = {
+  type: "string",
+  enum: ["stock", "hand", "play", "discard", "capture"],
+} as const;
+
+const SEAT_TARGET = {
+  type: "string",
+  description:
+    "Player id (human, bot_1, ...) or a symbolic seat: each, others, current, winner (highest card in the play area).",
+} as const;
+
+const SCORING = {
+  type: "object",
+  description:
+    "Configurable hand scoring. values maps ranks to points (default: pips, faces 10, ace 1); aceAlt upgrades aces while under bustOver (Blackjack: aceAlt 11, bustOver 21).",
+  properties: {
+    values: { type: "object" },
+    aceAlt: { type: "number" },
+    bustOver: { type: "number" },
+    zone: ZONE,
+  },
+} as const;
+
+const CONDITION = {
+  type: "object",
+  description:
+    "Predicate evaluated against live state. subject picks what to measure, op/value compare it.",
+  properties: {
+    subject: {
+      type: "string",
+      enum: [
+        "always",
+        "hand_count",
+        "hand_score",
+        "hand_busted",
+        "stock_count",
+        "capture_count",
+        "zone_count",
+        "chips",
+      ],
+    },
+    playerId: SEAT_TARGET,
+    zone: ZONE,
+    op: {
+      type: "string",
+      enum: ["lt", "lte", "eq", "neq", "gte", "gt"],
+    },
+    value: { type: "number" },
+    scoring: SCORING,
+  },
+  required: ["subject"],
+} as const;
+
+const DEAL_SPEC = {
+  type: "object",
+  description:
+    "One deal line. target 'play' deals to the community area; 'each' deals to every active seat.",
+  properties: {
+    target: SEAT_TARGET,
+    count: { type: "number" },
+    visibility: VISIBILITY,
+  },
+  required: ["target", "count"],
+} as const;
+
+const TRANSFER_SPEC = {
+  type: "object",
+  description:
+    "Move cards between seats. Set rank to take every card of that rank (the Go Fish ask), cardIds for explicit cards, or count for the top N.",
+  properties: {
+    from: SEAT_TARGET,
+    to: SEAT_TARGET,
+    fromZone: ZONE,
+    toZone: ZONE,
+    rank: { type: "string" },
+    rankFromSelection: {
+      type: "boolean",
+      description:
+        "Ask for the rank of the card the human selected instead of a fixed rank (pair with requiresCardSelection)",
+    },
+    cardIds: { type: "array", items: { type: "string" } },
+    count: { type: "number" },
+    visibility: VISIBILITY,
+    allowEmpty: {
+      type: "boolean",
+      description: "Return unchanged instead of erroring when nothing matches",
+    },
+  },
+  required: ["from", "to"],
+} as const;
+
+const SWEEP_SPEC = {
+  type: "object",
+  description:
+    "Award every card in a zone to a seat. to 'winner' resolves the highest card in the play area.",
+  properties: {
+    fromZone: ZONE,
+    to: SEAT_TARGET,
+    toZone: ZONE,
+    visibility: VISIBILITY,
+  },
+  required: ["to"],
+} as const;
+
+const ACTION_PRIMITIVES = [
+  "draw",
+  "deal_all",
+  "deal_spec",
+  "play",
+  "play_all",
+  "discard",
+  "capture",
+  "transfer",
+  "sweep",
+  "collect_sets",
+  "pass",
+  "fold",
+  "check",
+  "call",
+  "bet",
+  "raise",
+  "all_in",
+] as const;
 
 /** Shared schema for agent-defined human controls (buttons + optional amount). */
 const LEGAL_ACTION_ITEM = {
@@ -22,21 +164,9 @@ const LEGAL_ACTION_ITEM = {
     },
     primitive: {
       type: "string",
-      enum: [
-        "draw",
-        "deal_all",
-        "play",
-        "discard",
-        "capture",
-        "pass",
-        "fold",
-        "check",
-        "call",
-        "bet",
-        "raise",
-      ],
+      enum: ACTION_PRIMITIVES,
       description:
-        "draw=hit one card; deal_all=deal count to every seat; play/discard/capture need a selected card; pass=no card/chip move (Stand); chip primitives for betting",
+        "draw=hit one card; deal_all=deal count to every seat; deal_spec=uneven per-seat deal (needs dealSpec); play/discard/capture need a selected card; play_all=every seat plays from hand at once; transfer=move cards between seats (needs transfer); sweep=award a zone to a seat (needs sweep); collect_sets=move complete same-rank sets to capture (needs setSize); pass=no card/chip move (Stand); chip primitives and all_in for betting",
     },
     chipAction: {
       type: "string",
@@ -79,9 +209,44 @@ const LEGAL_ACTION_ITEM = {
       type: "boolean",
       description: "Pass the turn after the click",
     },
+    turnTarget: {
+      type: "string",
+      description:
+        "Give the turn to a specific seat instead of rotating: next, previous, same (extra turn), first, or a player id. Wins over rotateTurn.",
+    },
     narration: {
       type: "string",
       description: "Narration line written when the human clicks",
+    },
+    dealSpec: {
+      type: "array",
+      description:
+        "Per-seat deal lines for primitive deal_spec. Blackjack dealer up-card: [{target:'human',count:2,visibility:'hidden'},{target:'bot_1',count:1,visibility:'public'},{target:'bot_1',count:1,visibility:'unknown'}].",
+      items: DEAL_SPEC,
+    },
+    transfer: TRANSFER_SPEC,
+    sweep: SWEEP_SPEC,
+    setSize: {
+      type: "number",
+      description: "Cards per set for collect_sets (2 = pairs, 4 = books)",
+    },
+    scoring: SCORING,
+    branches: {
+      type: "array",
+      description:
+        "Conditional follow-ups checked in order after the primitive runs; the first match overrides nextPhase/nextActions/turn. Blackjack bust: [{when:{subject:'hand_busted',scoring:{aceAlt:11,bustOver:21}},nextPhase:'bust',nextActions:[],narration:'Bust!'},{when:{subject:'always'}}].",
+      items: {
+        type: "object",
+        properties: {
+          when: CONDITION,
+          nextPhase: { type: "string" },
+          nextActions: { type: "array", items: { type: "object" } },
+          narration: { type: "string" },
+          rotateTurn: { type: "boolean" },
+          turnTarget: { type: "string" },
+        },
+        required: ["when"],
+      },
     },
   },
   required: ["id", "label"],
@@ -117,6 +282,21 @@ function asLegalActions(raw: unknown): LegalAction[] {
  */
 export function WebMCPTools() {
   useWebMCP({
+    name: "list_presets",
+    description:
+      "List built-in card game presets available on the landing catalog (id, name, summary). Call this before inventing a custom game so you do not duplicate an existing preset. To start one, call create_game with preset set to that id.",
+    inputSchema: EMPTY_SCHEMA,
+    annotations: { readOnlyHint: true },
+    execute: async () => {
+      try {
+        return ok({ presets: listPresets() });
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
     name: "create_game",
     description: [
       "Create a new card game session and define the human controls for practice mode.",
@@ -126,7 +306,7 @@ export function WebMCPTools() {
       "3) Use nextPhase / nextActions / rotateTurn / narration on each control so the UI advances without hard-coded game rules.",
       "4) After later deals or bot moves, call set_legal_actions again to refresh the control set for the current decision.",
       "5) Call set_instructions (or pass instructions on create_game) with student-facing how-to text for the How to play sidebar.",
-      "Use preset 'texas-holdem' for the default poker table (seeds Deal → Check/Bet/Fold), or pass custom name/zones/jokers/mode/legalActions for any card game. Resets the table.",
+      `Use preset (${PRESET_IDS.join("|")}) to start a catalog game, or omit preset and pass custom name/zones/jokers/mode/legalActions for a game not in the list. Call list_presets first to see what already exists. Resets the table.`,
     ].join(" "),
     inputSchema: {
       type: "object",
@@ -134,8 +314,9 @@ export function WebMCPTools() {
         name: { type: "string", description: "Game display name" },
         preset: {
           type: "string",
-          enum: ["texas-holdem"],
-          description: "Optional built-in preset",
+          enum: PRESET_IDS,
+          description:
+            "Optional built-in catalog preset. Omit to invent a custom game.",
         },
         botCount: {
           type: "number",
@@ -192,7 +373,7 @@ export function WebMCPTools() {
       try {
         const session = gameStore.createGame({
           name: String(args?.name ?? "Card Game"),
-          preset: args?.preset as "texas-holdem" | undefined,
+          preset: args?.preset as string | undefined,
           botCount: args?.botCount as number | undefined,
           jokers: args?.jokers as boolean | undefined,
           mode: args?.mode as "tutorial" | "practice" | undefined,
@@ -573,8 +754,10 @@ export function WebMCPTools() {
             "draw",
             "deal_all",
             "play",
+            "play_all",
             "discard",
             "capture",
+            "collect_sets",
             "reveal",
             "pass",
             "fold",
@@ -582,6 +765,7 @@ export function WebMCPTools() {
             "call",
             "bet",
             "raise",
+            "all_in",
           ],
         },
         cardIds: {
@@ -590,10 +774,11 @@ export function WebMCPTools() {
         },
         count: { type: "number" },
         amount: { type: "number" },
-        visibility: {
-          type: "string",
-          enum: ["hidden", "public", "unknown"],
+        setSize: {
+          type: "number",
+          description: "Cards per set for collect_sets (default 4)",
         },
+        visibility: VISIBILITY,
       },
       required: ["playerId", "primitive"],
     } as const,
@@ -605,25 +790,316 @@ export function WebMCPTools() {
             | "draw"
             | "deal_all"
             | "play"
+            | "play_all"
             | "discard"
             | "capture"
+            | "collect_sets"
             | "reveal"
             | "pass"
             | "fold"
             | "check"
             | "call"
             | "bet"
-            | "raise",
+            | "raise"
+            | "all_in",
           cardIds: args?.cardIds as string[] | undefined,
           count: args?.count as number | undefined,
           amount: args?.amount as number | undefined,
-          visibility: args?.visibility as
-            | "hidden"
-            | "public"
-            | "unknown"
-            | undefined,
+          setSize: args?.setSize as number | undefined,
+          visibility: args?.visibility as Visibility | undefined,
           fromAgent: true,
         });
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "deal_batch",
+    description:
+      "Deal several lines at once so seats can get different counts and visibilities in one step — a Blackjack dealer up-card beside face-down hole cards, or an uneven opening. Use target 'play' for community cards and 'each' for every active seat.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        specs: { type: "array", items: DEAL_SPEC },
+      },
+      required: ["specs"],
+    } as const,
+    execute: async (args) => {
+      try {
+        gameStore.dealBatch((args?.specs ?? []) as DealSpec[]);
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "transfer_cards",
+    description:
+      "Move cards from one seat to another. Set rank to take every card of that rank (the Go Fish ask), cardIds for specific cards, or count for the top N. Errors when nothing matches unless allowEmpty is true — that error is the 'go fish' signal.",
+    inputSchema: TRANSFER_SPEC,
+    execute: async (args) => {
+      try {
+        gameStore.transfer(args as unknown as TransferSpec);
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "play_all",
+    description:
+      "Every active seat plays cards from hand into the play area at once — simultaneous flips like War, where turn order does not apply.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        count: { type: "number", description: "Cards per seat (default 1)" },
+        visibility: VISIBILITY,
+      },
+    } as const,
+    execute: async (args) => {
+      try {
+        gameStore.playAll(
+          Number(args?.count ?? 1),
+          (args?.visibility as Visibility | undefined) ?? "public",
+        );
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "sweep_zone",
+    description:
+      "Award every card in a zone to a seat — the War battle winner, or a trick. Use to 'winner' to resolve the highest card in the play area automatically; it errors on a tie so you can run a war.",
+    inputSchema: SWEEP_SPEC,
+    execute: async (args) => {
+      try {
+        gameStore.sweepZone(args as unknown as SweepSpec);
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "compare_zone",
+    description:
+      "Read the highest card each seat has in a zone and who is winning. Returns winners (more than one means a tie). Use before sweep_zone to narrate the result.",
+    inputSchema: {
+      type: "object",
+      properties: { zone: ZONE },
+    } as const,
+    annotations: { readOnlyHint: true },
+    execute: async (args) => {
+      try {
+        return ok(gameStore.compareZone(args?.zone as ZoneKind | undefined));
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "collect_sets",
+    description:
+      "Move a seat's complete same-rank sets from hand into their capture pile — Go Fish books of four, or pairs. Returns the sets that were collected.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        playerId: { type: "string" },
+        size: {
+          type: "number",
+          description: "Cards per set (default 4)",
+        },
+      },
+      required: ["playerId"],
+    } as const,
+    execute: async (args) => {
+      try {
+        const { sets } = gameStore.collectSets(
+          String(args?.playerId),
+          Number(args?.size ?? 4),
+        );
+        return ok({ sets, state: gameStore.getStatePayload() });
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "score_hand",
+    description:
+      "Score a seat's hand with configurable rank values instead of hard-coded rules. Blackjack: scoring {aceAlt:11, bustOver:21} returns total, soft, and busted. Omit scoring for plain pip totals.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        playerId: { type: "string" },
+        scoring: SCORING,
+      },
+      required: ["playerId"],
+    } as const,
+    annotations: { readOnlyHint: true },
+    execute: async (args) => {
+      try {
+        return ok(
+          gameStore.scoreHand(
+            String(args?.playerId),
+            args?.scoring as HandScoring | undefined,
+          ),
+        );
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "set_turn",
+    description:
+      "Give the turn to a specific seat, or move it symbolically: next, previous, same (extra turn), first. Use this for dealer-after-player order or 'keep going until you fail' turns that plain rotation cannot express.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target: {
+          type: "string",
+          description: "Player id, or next / previous / same / first",
+        },
+      },
+      required: ["target"],
+    } as const,
+    execute: async (args) => {
+      try {
+        gameStore.moveTurn(String(args?.target));
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "post_blinds",
+    description:
+      "Post forced bets before the deal. Each entry caps at that seat's stack, so a short stack is put all-in automatically.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        blinds: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              playerId: { type: "string" },
+              amount: { type: "number" },
+            },
+            required: ["playerId", "amount"],
+          },
+        },
+      },
+      required: ["blinds"],
+    } as const,
+    execute: async (args) => {
+      try {
+        gameStore.postBlinds(
+          (args?.blinds ?? []) as Array<{ playerId: string; amount: number }>,
+        );
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "get_pots",
+    description:
+      "Split the pot into main and side pots from what each seat committed this hand, with the seats eligible for each. Folded seats still fund the layers they paid into.",
+    inputSchema: EMPTY_SCHEMA,
+    annotations: { readOnlyHint: true },
+    execute: async () => {
+      try {
+        return ok({ pots: gameStore.computePots() });
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "award_pot",
+    description:
+      "Pay a pot to one or more winners, splitting evenly. Pass amount to settle a single side pot from get_pots; omit it to award the whole pot.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        winnerIds: { type: "array", items: { type: "string" } },
+        amount: { type: "number" },
+      },
+      required: ["winnerIds"],
+    } as const,
+    execute: async (args) => {
+      try {
+        gameStore.awardPot(
+          (args?.winnerIds ?? []) as string[],
+          args?.amount as number | undefined,
+        );
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "award_chips",
+    description:
+      "Adjust a seat's stack directly by a positive or negative amount — Blackjack wager settlement, bonuses, or penalties outside the pot.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        playerId: { type: "string" },
+        amount: { type: "number" },
+      },
+      required: ["playerId", "amount"],
+    } as const,
+    execute: async (args) => {
+      try {
+        gameStore.awardChips(String(args?.playerId), Number(args?.amount ?? 0));
+        return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "reset_round",
+    description:
+      "Clear betting bookkeeping. scope 'betting' clears the current round's contributions and current bet (between streets); scope 'hand' also clears per-hand commitments and unfolds every seat (new hand).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["betting", "hand"] },
+      },
+    } as const,
+    execute: async (args) => {
+      try {
+        if (args?.scope === "hand") {
+          gameStore.resetHand();
+        } else {
+          gameStore.resetBettingRound();
+        }
         return ok(gameStore.getStatePayload());
       } catch (e) {
         return fail(e);

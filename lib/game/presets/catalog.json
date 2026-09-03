@@ -1,0 +1,22 @@
+[
+  {
+    "id": "texas-holdem",
+    "name": "Texas Hold'em",
+    "summary": "Blinds, hole cards, and betting with call, raise, and all-in against side-pot-aware chips."
+  },
+  {
+    "id": "blackjack",
+    "name": "Blackjack",
+    "summary": "Hit or stand against the dealer, with live soft totals and automatic bust detection."
+  },
+  {
+    "id": "war",
+    "name": "War",
+    "summary": "Both sides flip at once; the higher card sweeps the pile into a capture stack."
+  },
+  {
+    "id": "go-fish",
+    "name": "Go Fish",
+    "summary": "Ask a rival for the rank you picked, go fishing when they have none, and bank books of four."
+  }
+]

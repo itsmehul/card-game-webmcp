@@ -18,13 +18,11 @@ const SIZE = {
     box: "h-[5.75rem] w-[4.35rem]",
     rank: "text-[1.35rem]",
     pip: "text-[1.65rem]",
-    corner: "text-[0.7rem]",
   },
   md: {
     box: "h-[8.85rem] w-[6.6rem]",
     rank: "text-[2.35rem]",
     pip: "text-[2.85rem]",
-    corner: "text-base",
   },
 } as const;
 
@@ -94,21 +92,9 @@ export function PlayingCard({
       )}
       aria-label={`${rank === "joker" ? "Joker" : rank} of ${suit}`}
     >
-      <span className="absolute left-1.5 top-1 flex flex-col items-center">
+      <span className="flex h-full flex-col items-center justify-center gap-0.5">
         <span className={cn(dims.rank, isJoker && "text-[1.6rem]")}>{label}</span>
-        <span className={dims.corner}>{SUIT_SYMBOL[suit]}</span>
-      </span>
-      <span
-        className={cn(
-          "absolute inset-0 flex items-center justify-center",
-          dims.pip,
-        )}
-      >
-        {SUIT_SYMBOL[suit]}
-      </span>
-      <span className="absolute bottom-1 right-1.5 flex rotate-180 flex-col items-center">
-        <span className={cn(dims.rank, isJoker && "text-[1.6rem]")}>{label}</span>
-        <span className={dims.corner}>{SUIT_SYMBOL[suit]}</span>
+        <span className={dims.pip}>{SUIT_SYMBOL[suit]}</span>
       </span>
     </button>
   );

@@ -1,0 +1,73 @@
+{
+  "id": "texas-holdem",
+  "name": "Texas Hold'em",
+  "summary": "Blinds, hole cards, and betting with call, raise, and all-in against side-pot-aware chips.",
+  "botCount": 2,
+  "jokers": false,
+  "chips": true,
+  "startingStack": 1000,
+  "turnDirection": "clockwise",
+  "enabledZones": {
+    "stock": true,
+    "hand": true,
+    "play": true,
+    "discard": true,
+    "capture": false
+  },
+  "phase": "waiting_to_deal",
+  "legalActions": [
+    {
+      "id": "deal",
+      "label": "Deal hole cards",
+      "primitive": "deal_spec",
+      "dealSpec": [{ "target": "each", "count": 2, "visibility": "hidden" }],
+      "nextPhase": "preflop",
+      "nextActions": [
+        {
+          "id": "check",
+          "label": "Check",
+          "chipAction": "check",
+          "primitive": "check",
+          "rotateTurn": true,
+          "narration": "You checked."
+        },
+        {
+          "id": "call",
+          "label": "Call",
+          "chipAction": "call",
+          "primitive": "call",
+          "rotateTurn": true,
+          "narration": "You called."
+        },
+        {
+          "id": "raise",
+          "label": "Raise",
+          "chipAction": "raise",
+          "primitive": "raise",
+          "promptAmount": true,
+          "minAmount": 50,
+          "rotateTurn": true,
+          "narration": "You raised."
+        },
+        {
+          "id": "all_in",
+          "label": "All in",
+          "primitive": "all_in",
+          "rotateTurn": true,
+          "narration": "You are all in."
+        },
+        {
+          "id": "fold",
+          "label": "Fold",
+          "chipAction": "fold",
+          "primitive": "fold",
+          "rotateTurn": true,
+          "narration": "You folded."
+        }
+      ],
+      "narration": "Hole cards dealt. Your action."
+    }
+  ],
+  "instructions": "Ask the agent to post blinds, then deal hole cards. Check, call, raise, go all in, or fold. Between streets the agent deals the flop, turn, and river to the play area and resets the betting round; at showdown it reads get_pots for main and side pots and pays with award_pot.",
+  "openingNarration": "Texas Hold'em ready. Ask the agent to post blinds, then deal hole cards."
+}

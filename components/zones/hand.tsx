@@ -18,7 +18,7 @@ export function Hand({
 }) {
   return (
     <div className="flex w-full flex-col items-center gap-2">
-      <div className="flex flex-wrap items-end justify-center gap-2">
+      <div className="flex flex-wrap items-end justify-center gap-1.5">
         {cards.length === 0 ? (
           <p className="text-xs text-emerald-600">No cards</p>
         ) : (
@@ -29,6 +29,7 @@ export function Hand({
               faceUp={c.faceUp}
               rank={c.rank}
               suit={c.suit}
+              size="sm"
               selected={selectedId === c.id}
               onClick={
                 interactive && onSelect ? () => onSelect(c.id) : undefined

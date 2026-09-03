@@ -1,0 +1,74 @@
+{
+  "id": "go-fish",
+  "name": "Go Fish",
+  "summary": "Ask a rival for the rank you picked, go fishing when they have none, and bank books of four.",
+  "botCount": 2,
+  "jokers": false,
+  "chips": false,
+  "turnDirection": "clockwise",
+  "enabledZones": {
+    "stock": true,
+    "hand": true,
+    "play": false,
+    "discard": false,
+    "capture": true
+  },
+  "phase": "waiting_to_deal",
+  "legalActions": [
+    {
+      "id": "deal",
+      "label": "Deal hands",
+      "primitive": "deal_spec",
+      "dealSpec": [{ "target": "each", "count": 5, "visibility": "hidden" }],
+      "nextPhase": "your_turn",
+      "nextActions": [
+        {
+          "id": "ask_bot_1",
+          "label": "Ask Bot 1",
+          "primitive": "transfer",
+          "requiresCardSelection": true,
+          "transfer": {
+            "from": "bot_1",
+            "to": "human",
+            "rankFromSelection": true,
+            "visibility": "hidden"
+          },
+          "turnTarget": "same",
+          "narration": "Bot 1 handed over their matching cards. Ask again."
+        },
+        {
+          "id": "ask_bot_2",
+          "label": "Ask Bot 2",
+          "primitive": "transfer",
+          "requiresCardSelection": true,
+          "transfer": {
+            "from": "bot_2",
+            "to": "human",
+            "rankFromSelection": true,
+            "visibility": "hidden"
+          },
+          "turnTarget": "same",
+          "narration": "Bot 2 handed over their matching cards. Ask again."
+        },
+        {
+          "id": "go_fish",
+          "label": "Go fish",
+          "primitive": "draw",
+          "count": 1,
+          "visibility": "hidden",
+          "rotateTurn": true,
+          "narration": "You drew from the stock. Turn passes."
+        },
+        {
+          "id": "books",
+          "label": "Bank books",
+          "primitive": "collect_sets",
+          "setSize": 4
+        }
+      ],
+      "narration": "Five cards each. Select a card, then ask a rival for that rank."
+    }
+  ],
+  "instructions": "Select a card in your hand, then ask a rival for that rank. If they have any you take them and keep your turn; if they have none the ask fails, so click Go fish to draw and pass the turn. Bank books moves any completed set of four into your capture pile. Ask the agent to play the bots and to track who asked for what.",
+  "openingNarration": "Go Fish ready. Deal hands, then pick a rank to ask for."
+}

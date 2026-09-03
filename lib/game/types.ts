@@ -32,15 +32,111 @@ export type ChipActionKind = "fold" | "check" | "call" | "bet" | "raise";
 export type ActionPrimitive =
   | "draw"
   | "deal_all"
+  | "deal_spec"
   | "play"
+  | "play_all"
   | "discard"
   | "capture"
+  | "transfer"
+  | "sweep"
+  | "collect_sets"
   | "pass"
   | "fold"
   | "check"
   | "call"
   | "bet"
-  | "raise";
+  | "raise"
+  | "all_in";
+
+/**
+ * Seat selector used by deal/transfer/sweep specs.
+ * Accepts a player id, or one of the symbolic targets below.
+ */
+export type SeatTarget =
+  | "each"
+  | "others"
+  | "current"
+  | "human"
+  | "winner"
+  | "play"
+  | (string & {});
+
+/** One line of a per-seat deal (Blackjack dealer up-card, uneven openings). */
+export interface DealSpec {
+  target: SeatTarget;
+  count: number;
+  visibility?: Visibility;
+}
+
+/** Move cards between seats/zones (Go Fish ask, stealing, passing). */
+export interface TransferSpec {
+  from: SeatTarget;
+  to: SeatTarget;
+  fromZone?: ZoneKind;
+  toZone?: ZoneKind;
+  /** Take every card of this rank (the Go Fish "ask") */
+  rank?: Rank;
+  /** Ask for the rank of the card the human selected, rather than a fixed rank */
+  rankFromSelection?: boolean;
+  /** Explicit card ids; wins over rank/count */
+  cardIds?: string[];
+  /** Take up to N cards when rank/cardIds are omitted */
+  count?: number;
+  visibility?: Visibility;
+  /** Do not throw when the source holds nothing matching */
+  allowEmpty?: boolean;
+}
+
+/** Award a whole zone to a seat (War trick, trick-taking). */
+export interface SweepSpec {
+  fromZone?: ZoneKind;
+  to: SeatTarget;
+  toZone?: ZoneKind;
+  visibility?: Visibility;
+}
+
+/** Configurable hand scoring so totals are not hard-coded per game. */
+export interface HandScoring {
+  /** Explicit per-rank values; unlisted ranks use pip value, face = 10 */
+  values?: Partial<Record<Rank, number>>;
+  /** Alternate (soft) ace value used while it does not bust */
+  aceAlt?: number;
+  /** Score above this counts as bust */
+  bustOver?: number;
+  zone?: ZoneKind;
+}
+
+export type ConditionSubject =
+  | "always"
+  | "hand_count"
+  | "hand_score"
+  | "hand_busted"
+  | "stock_count"
+  | "capture_count"
+  | "zone_count"
+  | "chips";
+
+export type ConditionOp = "lt" | "lte" | "eq" | "neq" | "gte" | "gt";
+
+/** Predicate evaluated against live state to pick a branch. */
+export interface Condition {
+  subject: ConditionSubject;
+  playerId?: SeatTarget;
+  zone?: ZoneKind;
+  op?: ConditionOp;
+  value?: number;
+  scoring?: HandScoring;
+}
+
+/** Conditional follow-up applied after a control's primitive runs. */
+export interface ActionBranch {
+  when: Condition;
+  nextPhase?: string;
+  nextActions?: LegalAction[];
+  narration?: string;
+  rotateTurn?: boolean;
+  turnTarget?: SeatTarget | "next" | "previous" | "same" | "first";
+}
 
 export interface CardLocation {
   zone: ZoneKind;
@@ -92,8 +188,25 @@ export interface LegalAction {
   nextActions?: LegalAction[];
   /** Pass the turn after the click */
   rotateTurn?: boolean;
+  /** Give the turn to a specific seat (wins over rotateTurn) */
+  turnTarget?: SeatTarget | "next" | "previous" | "same" | "first";
   /** Student-facing narration written on click */
   narration?: string;
+  /** Per-seat deal lines for the deal_spec primitive */
+  dealSpec?: DealSpec[];
+  /** Card movement for the transfer primitive */
+  transfer?: TransferSpec;
+  /** Zone award for the sweep primitive */
+  sweep?: SweepSpec;
+  /** Cards per set for the collect_sets primitive (2 = pairs, 4 = books) */
+  setSize?: number;
+  /** Scoring rules used by conditions and score readouts */
+  scoring?: HandScoring;
+  /**
+   * Conditional follow-ups evaluated in order after the primitive runs.
+   * The first match wins and overrides nextPhase/nextActions/turn.
+   */
+  branches?: ActionBranch[];
 }
 
 export interface ChipLedger {
@@ -102,6 +215,14 @@ export interface ChipLedger {
   currentBet: number;
   /** Amount each player has put in this betting round */
   contributions: Record<string, number>;
+  /** Cumulative amount each player has put in this hand (drives side pots) */
+  committed: Record<string, number>;
+}
+
+/** One main/side pot with the seats eligible to win it. */
+export interface Pot {
+  amount: number;
+  eligible: string[];
 }
 
 export interface EnabledZones {
@@ -146,7 +267,8 @@ export interface CreateGameOptions {
   enabledZones?: Partial<EnabledZones>;
   chips?: boolean;
   startingStack?: number;
-  preset?: "texas-holdem";
+  /** Catalog preset id (e.g. texas-holdem, blackjack). Omit for a custom game. */
+  preset?: string;
   /**
    * Initial human controls for practice mode. Required for non-preset
    * games when the human must act — define buttons matching the game's
