@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { CapturePile } from "@/components/zones/capture-pile";
 import { DiscardPile } from "@/components/zones/discard-pile";
 import { Hand } from "@/components/zones/hand";
@@ -144,48 +144,14 @@ export function GameTable() {
           </h1>
           {session ? (
             <>
-              <motion.span
-                key={`name-${session.name}`}
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <Badge variant="secondary" icon="playing_cards">
-                  {session.name}
-                </Badge>
-              </motion.span>
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.span
-                  key={`phase-${session.phase}`}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 22 }}
-                >
-                  <Badge variant="outline" icon="flag">
-                    {session.phase}
-                  </Badge>
-                </motion.span>
-              </AnimatePresence>
+              <Badge variant="secondary">{session.name}</Badge>
+              <Badge variant="outline">{session.phase}</Badge>
               {view?.turnPlayerName && (
-                <motion.span
-                  key={`turn-${view.turnPlayerId}`}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 24 }}
-                >
-                  <Badge
-                    variant="muted"
-                    icon={view.turnPlayerId === "human" ? "person" : "smart_toy"}
-                  >
-                    Turn · {view.turnPlayerName}
-                  </Badge>
-                </motion.span>
+                <Badge variant="muted">Turn · {view.turnPlayerName}</Badge>
               )}
             </>
           ) : (
-            <Badge variant="muted" icon="hourglass_empty">
-              No game
-            </Badge>
+            <Badge variant="muted">No game</Badge>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -222,99 +188,84 @@ export function GameTable() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pb-8 pt-8">
           {/* Bot seats */}
           <div className="flex flex-wrap justify-center gap-2.5">
-            <AnimatePresence initial={false}>
-              {bots.map((bot) => (
-                <motion.div
-                  key={bot.id}
-                  initial={{ opacity: 0, y: 12, scale: 0.97 }}
-                  animate={{ opacity: bot.folded ? 0.4 : 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 24 }}
-                  className={`relative flex min-w-[9rem] max-w-3xl flex-1 flex-col items-center gap-1.5 rounded-lg border border-emerald-900/45 bg-emerald-950/25 px-3 py-2 transition-shadow duration-300 ${
-                    bot.folded ? "opacity-40" : ""
-                  } ${isHighlighted("hand", bot.id) || isHighlighted(bot.id) ? HIGHLIGHT_CLASSES : ""}`}
-                >
-                  {(isHighlighted("hand", bot.id) || isHighlighted(bot.id)) && zoneLabel && (
-                    <motion.span
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md"
+            {bots.map((bot) => (
+              <div
+                key={bot.id}
+                className={`relative flex min-w-[9rem] max-w-3xl flex-1 flex-col items-center gap-1.5 rounded-lg border border-emerald-900/45 bg-emerald-950/25 px-3 py-2 transition-shadow duration-300 ${
+                  bot.folded ? "opacity-40" : ""
+                } ${isHighlighted("hand", bot.id) || isHighlighted(bot.id) ? HIGHLIGHT_CLASSES : ""}`}
+              >
+                {(isHighlighted("hand", bot.id) || isHighlighted(bot.id)) && zoneLabel && (
+                  <span className="absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
+                    {zoneLabel}
+                  </span>
+                )}
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium text-emerald-100">{bot.name}</span>
+                  {bot.chips !== null && <ChipAmount amount={bot.chips} />}
+                  {session.mode === "tutorial" && bot.handCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setBotCardsRevealed((v) => !v)}
+                      className="inline-flex items-center justify-center rounded p-0.5 text-emerald-400/70 transition-colors hover:text-emerald-200"
+                      aria-label={botCardsRevealed ? "Hide bot cards" : "Show bot cards"}
                     >
-                      {zoneLabel}
-                    </motion.span>
+                      <MaterialIcon
+                        name={botCardsRevealed ? "visibility_off" : "visibility"}
+                        size="xs"
+                      />
+                    </button>
                   )}
-                  <div className="flex items-center gap-2 text-sm">
-                    <MaterialIcon
-                      name="smart_toy"
-                      size="xs"
-                      className="text-emerald-400/80"
-                    />
-                    <span className="font-medium text-emerald-100">{bot.name}</span>
-                    {bot.chips !== null && <ChipAmount amount={bot.chips} />}
-                    {session.mode === "tutorial" && bot.handCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setBotCardsRevealed((v) => !v)}
-                        className="inline-flex items-center justify-center rounded p-0.5 text-emerald-400/70 transition-colors hover:text-emerald-200"
-                        aria-label={botCardsRevealed ? "Hide bot cards" : "Show bot cards"}
-                      >
-                        <MaterialIcon
-                          name={botCardsRevealed ? "visibility_off" : "visibility"}
-                          size="xs"
+                </div>
+                <div className="flex min-w-0 flex-wrap justify-center gap-1">
+                  {session.mode === "practice" || (session.mode === "tutorial" && !botCardsRevealed) ? (
+                    bot.handCount > 0 && (
+                      <div className="relative">
+                        <PlayingCard
+                          id={`${bot.id}-hidden-hand`}
+                          faceUp={false}
+                          size="sm"
+                          noEnter
                         />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex min-w-0 flex-wrap justify-center gap-1">
-                    {session.mode === "practice" || (session.mode === "tutorial" && !botCardsRevealed) ? (
-                      bot.handCount > 0 && (
-                        <div className="relative">
-                          <PlayingCard
-                            id={`${bot.id}-hidden-hand`}
-                            faceUp={false}
-                            size="sm"
-                            noEnter
-                          />
-                          <span className="absolute -right-2 -top-2 rounded-full bg-emerald-400 px-1.5 py-0.5 text-xs font-semibold text-emerald-950">
-                            {bot.handCount}
-                          </span>
-                        </div>
-                      )
-                    ) : (
-                      <AnimatePresence initial={false}>
-                        {bot.hand.map((c) => (
-                          <PlayingCard
-                            key={c.id}
-                            id={c.id}
-                            faceUp={c.faceUp}
-                            rank={c.rank}
-                            suit={c.suit}
-                            size="sm"
-                          />
-                        ))}
-                      </AnimatePresence>
-                    )}
-                  </div>
-                  {session.enabledZones.capture && (
-                    <CapturePile
-                      cards={session.cards
-                        .filter(
-                          (c) =>
-                            c.location.zone === "capture" &&
-                            c.location.ownerId === bot.id,
-                        )
-                        .map((c) => ({
-                          id: c.id,
-                          faceUp: c.visibility === "public",
-                          rank: c.visibility === "public" ? c.rank : undefined,
-                          suit: c.visibility === "public" ? c.suit : undefined,
-                        }))}
-                      label="Score"
-                    />
+                        <span className="absolute -right-2 -top-2 rounded-full bg-emerald-400 px-1.5 py-0.5 text-xs font-semibold text-emerald-950">
+                          {bot.handCount}
+                        </span>
+                      </div>
+                    )
+                  ) : (
+                    <AnimatePresence initial={false}>
+                      {bot.hand.map((c) => (
+                        <PlayingCard
+                          key={c.id}
+                          id={c.id}
+                          faceUp={c.faceUp}
+                          rank={c.rank}
+                          suit={c.suit}
+                          size="sm"
+                        />
+                      ))}
+                    </AnimatePresence>
                   )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                </div>
+                {session.enabledZones.capture && (
+                  <CapturePile
+                    cards={session.cards
+                      .filter(
+                        (c) =>
+                          c.location.zone === "capture" &&
+                          c.location.ownerId === bot.id,
+                      )
+                      .map((c) => ({
+                        id: c.id,
+                        faceUp: c.visibility === "public",
+                        rank: c.visibility === "public" ? c.rank : undefined,
+                        suit: c.visibility === "public" ? c.suit : undefined,
+                      }))}
+                    label="Score"
+                  />
+                )}
+              </div>
+            ))}
           </div>
 
           {/* Center table */}
@@ -333,8 +284,7 @@ export function GameTable() {
                   Pot · {view.chips.pot}
                 </span>
                 {view.chips.currentBet > 0 && (
-                  <span className="inline-flex items-center gap-0.5 text-amber-200/70">
-                    <MaterialIcon name="north" size="xs" />
+                  <span className="text-amber-200/70">
                     Bet {view.chips.currentBet}
                   </span>
                 )}
@@ -399,20 +349,11 @@ export function GameTable() {
               </span>
             )}
             <div className="flex items-center gap-2 text-sm">
-              <MaterialIcon
-                name="person"
-                size="xs"
-                className="text-emerald-400/80"
-              />
               <span className="font-medium text-emerald-100">You</span>
               {human?.chips !== null && human?.chips !== undefined && (
                 <ChipAmount amount={human.chips} />
               )}
-              {human?.folded && (
-                <Badge variant="muted" icon="block">
-                  Folded
-                </Badge>
-              )}
+              {human?.folded && <Badge variant="muted">Folded</Badge>}
             </div>
             {session.enabledZones.hand && human && (
               <Hand
@@ -453,16 +394,11 @@ export function GameTable() {
             )}
             <div className="flex flex-wrap items-center justify-center gap-2">
               {view.legalActions.length > 0 ? (
-                <AnimatePresence initial={false}>
-                  {view.legalActions.map((action) => {
-                    const actionCue = highlight?.actionId === action.id;
-                    return (
-                    <motion.div
+                view.legalActions.map((action) => {
+                  const actionCue = highlight?.actionId === action.id;
+                  return (
+                    <div
                       key={action.id}
-                      initial={{ opacity: 0, y: 8, scale: 0.94 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.94 }}
-                      transition={{ type: "spring", stiffness: 320, damping: 24 }}
                       className={`relative flex items-center gap-1.5 rounded-lg ${actionCue ? HIGHLIGHT_CLASSES : ""}`}
                     >
                       {actionCue && highlight?.label && (
@@ -506,13 +442,11 @@ export function GameTable() {
                         <MaterialIcon name={actionIcon(action)} size="xs" />
                         {action.label}
                       </Button>
-                    </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
+                    </div>
+                  );
+                })
               ) : !isHumanTurn ? (
-                <p className="inline-flex items-center gap-1 text-sm text-emerald-400/80">
-                  <MaterialIcon name="hourglass" size="xs" />
+                <p className="text-sm text-emerald-400/80">
                   Waiting for {view.turnPlayerName ?? "another player"}…
                 </p>
               ) : (
@@ -530,15 +464,7 @@ export function GameTable() {
               </Button>
             </div>
             {error && (
-              <motion.p
-                key={error}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: [0, -6, 6, -4, 4, 0] }}
-                transition={{ duration: 0.4 }}
-                className="text-center text-sm text-red-400"
-              >
-                {error}
-              </motion.p>
+              <p className="text-center text-sm text-red-400">{error}</p>
             )}
           </div>
         </div>

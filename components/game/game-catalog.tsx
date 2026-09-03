@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { MaterialIcon } from "@/components/ui/material-icon";
 import {
@@ -13,34 +12,12 @@ interface GameCatalogProps {
   onStart: (id: string, mode: SessionMode) => void;
 }
 
-const container = {
-  hidden: {},
-  show: {
-    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
-  },
-} as const;
-
-const item = {
-  hidden: { opacity: 0, y: 24, scale: 0.96 },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: "spring", stiffness: 220, damping: 24 },
-  },
-} as const;
-
 export function GameCatalog({ onStart }: GameCatalogProps) {
   const presets = listPresets();
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-10">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="max-w-2xl space-y-3"
-      >
+      <div className="max-w-2xl space-y-3">
         <p className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.2em] text-amber-400/80">
           <MaterialIcon name="casino" size="xs" filled className="text-amber-400" />
           Choose a table
@@ -61,23 +38,15 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
           </a>{" "}
           instead of loading every tool description.
         </p>
-      </motion.div>
+      </div>
 
-      <motion.div
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-4 sm:grid-cols-2"
-      >
+      <div className="grid gap-4 sm:grid-cols-2">
         {presets.map((entry) => {
           const full = getPreset(entry.id);
           const bots = full?.botCount ?? 2;
           return (
-            <motion.article
+            <article
               key={entry.id}
-              variants={item}
-              whileHover={{ y: -6 }}
-              transition={{ type: "spring", stiffness: 300, damping: 22 }}
               className="group flex flex-col gap-4 rounded-xl border border-emerald-800/70 bg-linear-to-br from-emerald-950/80 to-emerald-950/30 p-5 shadow-[inset_0_1px_0_rgba(167,243,208,0.06)] transition hover:border-amber-500/40 hover:shadow-[0_0_0_1px_rgba(245,158,11,0.15)]"
             >
               <div className="flex items-start justify-between gap-3">
@@ -116,17 +85,12 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
                   Tutorial
                 </Button>
               </div>
-            </motion.article>
+            </article>
           );
         })}
-      </motion.div>
+      </div>
 
-      <motion.aside
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.4 }}
-        className="rounded-xl border border-dashed border-emerald-700/40 bg-emerald-950/20 px-5 py-4"
-      >
+      <aside className="rounded-xl border border-dashed border-emerald-700/40 bg-emerald-950/20 px-5 py-4">
         <p className="inline-flex max-w-2xl items-start gap-2 text-sm leading-relaxed text-emerald-100/70">
           <MaterialIcon
             name="wand_stars"
@@ -138,7 +102,7 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
             Ask an agent to invent a custom game — it has the playbook via WebMCP.
           </span>
         </p>
-      </motion.aside>
+      </aside>
     </div>
   );
 }

@@ -66,8 +66,7 @@ export function TableSidebars({
           id="instructions-panel"
           className="flex h-full w-72 min-h-0 flex-col overflow-hidden border-r border-emerald-900/60 bg-emerald-950/40"
         >
-          <div className="flex h-11 shrink-0 items-center gap-2 border-b border-emerald-900/50 px-3 text-emerald-100">
-            <MaterialIcon name="menu_book" size="sm" />
+          <div className="flex h-11 shrink-0 items-center border-b border-emerald-900/50 px-3 text-emerald-100">
             <span className="font-medium">How to play</span>
           </div>
           <ScrollArea className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
@@ -89,8 +88,7 @@ export function TableSidebars({
           id="game-log-panel"
           className="flex h-full w-72 min-h-0 flex-col overflow-hidden border-r border-emerald-900/60 bg-emerald-950/30"
         >
-          <div className="flex h-11 shrink-0 items-center gap-2 border-b border-emerald-900/50 px-3 text-emerald-100">
-            <MaterialIcon name="receipt_long" size="sm" />
+          <div className="flex h-11 shrink-0 items-center border-b border-emerald-900/50 px-3 text-emerald-100">
             <span className="font-medium">Game log</span>
           </div>
           <ScrollArea className="min-h-0 flex-1 overflow-y-auto px-3 py-3">

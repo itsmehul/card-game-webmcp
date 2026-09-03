@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { MaterialIcon } from "@/components/ui/material-icon";
 import { PlayingCard } from "@/components/cards/playing-card";
 import type { CardPublicView, PlayLayout } from "@/lib/game";
 
@@ -77,8 +76,7 @@ export function PlayArea({
             </motion.div>
           )}
         </AnimatePresence>
-        <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wide text-emerald-400/80">
-          <MaterialIcon name="style" size="xs" />
+        <span className="text-[10px] uppercase tracking-wide text-emerald-400/80">
           Play pile
         </span>
       </div>
@@ -112,8 +110,7 @@ export function PlayArea({
           )}
         </AnimatePresence>
       </div>
-      <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wide text-emerald-400/80">
-        <MaterialIcon name="grid_view" size="xs" />
+      <span className="text-[10px] uppercase tracking-wide text-emerald-400/80">
         Community / Tableau
       </span>
     </div>

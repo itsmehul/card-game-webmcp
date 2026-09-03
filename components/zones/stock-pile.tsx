@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MaterialIcon } from "@/components/ui/material-icon";
 import { PlayingCard } from "@/components/cards/playing-card";
 
 export function StockPile({ count }: { count: number }) {
@@ -51,8 +50,7 @@ export function StockPile({ count }: { count: number }) {
           </motion.div>
         )}
       </div>
-      <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wide text-emerald-400/80">
-        <MaterialIcon name="layers" size="xs" />
+      <span className="text-[10px] uppercase tracking-wide text-emerald-400/80">
         Stock · {count}
       </span>
     </div>
