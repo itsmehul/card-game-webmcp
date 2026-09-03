@@ -13,6 +13,21 @@ const SUIT_SYMBOL: Record<Suit, string> = {
 
 const RED_SUITS = new Set<Suit>(["hearts", "diamonds"]);
 
+const SIZE = {
+  sm: {
+    box: "h-[5.75rem] w-[4.35rem]",
+    rank: "text-[1.35rem]",
+    pip: "text-[1.65rem]",
+    corner: "text-[0.7rem]",
+  },
+  md: {
+    box: "h-[8.85rem] w-[6.6rem]",
+    rank: "text-[2.35rem]",
+    pip: "text-[2.85rem]",
+    corner: "text-base",
+  },
+} as const;
+
 export interface PlayingCardProps {
   id: string;
   faceUp: boolean;
@@ -36,8 +51,9 @@ export function PlayingCard({
   muted,
 }: PlayingCardProps) {
   const isRed = faceUp && RED_SUITS.has(suit);
-  const dims =
-    size === "sm" ? "h-14 w-10 text-[10px]" : "h-[4.5rem] w-12 text-xs";
+  const dims = SIZE[size];
+  const isJoker = rank === "joker";
+  const label = isJoker ? "J" : (rank ?? "");
 
   if (!faceUp) {
     return (
@@ -46,8 +62,8 @@ export function PlayingCard({
         disabled={!onClick}
         onClick={onClick}
         className={cn(
-          dims,
-          "relative shrink-0 rounded-md border border-emerald-900/80 bg-[linear-gradient(135deg,#14532d_0%,#052e16_50%,#14532d_100%)] shadow-sm",
+          dims.box,
+          "relative shrink-0 rounded-lg border border-emerald-900/80 bg-[linear-gradient(135deg,#14532d_0%,#052e16_50%,#14532d_100%)] shadow-md",
           "disabled:cursor-default",
           selected && "ring-2 ring-amber-400",
           muted && "opacity-50",
@@ -55,12 +71,11 @@ export function PlayingCard({
         )}
         aria-label="Face-down card"
       >
-        <span className="pointer-events-none absolute inset-1 rounded border border-emerald-500/20" />
+        <span className="pointer-events-none absolute inset-1.5 rounded-md border border-emerald-500/25" />
+        <span className="pointer-events-none absolute inset-3 rounded-sm border border-emerald-400/10" />
       </button>
     );
   }
-
-  const label = rank === "joker" ? "Jok" : rank;
 
   return (
     <button
@@ -68,20 +83,33 @@ export function PlayingCard({
       disabled={!onClick}
       onClick={onClick}
       className={cn(
-        dims,
-        "relative shrink-0 rounded-md border bg-[#f8f5ec] shadow-sm",
-        "flex flex-col items-start justify-between p-1 font-semibold leading-none",
+        dims.box,
+        "relative shrink-0 overflow-hidden rounded-lg border bg-[#f8f5ec] shadow-md",
+        "font-black leading-none tracking-tight",
         isRed ? "text-red-700 border-red-200" : "text-zinc-900 border-zinc-300",
         "disabled:cursor-default",
         selected && "ring-2 ring-amber-400 -translate-y-1",
         muted && "opacity-50",
         className,
       )}
-      aria-label={`${label} of ${suit}`}
+      aria-label={`${rank === "joker" ? "Joker" : rank} of ${suit}`}
     >
-      <span>{label}</span>
-      <span className="self-center text-base">{SUIT_SYMBOL[suit]}</span>
-      <span className="self-end rotate-180">{label}</span>
+      <span className="absolute left-1.5 top-1 flex flex-col items-center">
+        <span className={cn(dims.rank, isJoker && "text-[1.6rem]")}>{label}</span>
+        <span className={dims.corner}>{SUIT_SYMBOL[suit]}</span>
+      </span>
+      <span
+        className={cn(
+          "absolute inset-0 flex items-center justify-center",
+          dims.pip,
+        )}
+      >
+        {SUIT_SYMBOL[suit]}
+      </span>
+      <span className="absolute bottom-1 right-1.5 flex rotate-180 flex-col items-center">
+        <span className={cn(dims.rank, isJoker && "text-[1.6rem]")}>{label}</span>
+        <span className={dims.corner}>{SUIT_SYMBOL[suit]}</span>
+      </span>
     </button>
   );
 }

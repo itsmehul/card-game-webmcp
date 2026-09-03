@@ -20,7 +20,7 @@ export function DiscardPile({
           suit={top.suit}
         />
       ) : (
-        <div className="flex h-[4.5rem] w-12 items-center justify-center rounded-md border border-dashed border-emerald-800/60 text-[10px] text-emerald-700">
+        <div className="flex h-[8.85rem] w-[6.6rem] items-center justify-center rounded-lg border border-dashed border-emerald-800/60 text-xs text-emerald-700">
           —
         </div>
       )}

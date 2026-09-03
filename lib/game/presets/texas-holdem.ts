@@ -61,6 +61,7 @@ export function createTexasHoldem(
         narration: "Hole cards dealt. Your action.",
       },
     ],
+    instructions: options.instructions,
   });
 
   return narrate(

@@ -22,7 +22,7 @@ export function CapturePile({
           size="sm"
         />
       ) : (
-        <div className="flex h-14 w-10 items-center justify-center rounded-md border border-dashed border-emerald-800/60 text-[10px] text-emerald-700">
+        <div className="flex h-[5.75rem] w-[4.35rem] items-center justify-center rounded-lg border border-dashed border-emerald-800/60 text-xs text-emerald-700">
           —
         </div>
       )}

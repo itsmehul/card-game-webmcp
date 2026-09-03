@@ -19,6 +19,7 @@ import {
   setLegalActions,
   setMode,
   setPhase,
+  setInstructions,
   shuffle,
 } from "./engine";
 import { createTexasHoldem } from "./presets/texas-holdem";
@@ -145,6 +146,10 @@ export const gameStore = {
   },
   narrate(text: string) {
     setSession(narrate(requireSession(), text));
+    return session!;
+  },
+  setInstructions(text: string) {
+    setSession(setInstructions(requireSession(), text));
     return session!;
   },
   /**

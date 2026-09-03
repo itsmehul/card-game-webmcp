@@ -5,7 +5,7 @@ import { PlayingCard } from "@/components/cards/playing-card";
 export function StockPile({ count }: { count: number }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="relative h-[4.5rem] w-12">
+      <div className="relative h-[8.85rem] w-[6.6rem]">
         {count > 0 ? (
           <>
             <PlayingCard

@@ -125,6 +125,7 @@ export function WebMCPTools() {
       "2) Each action needs id, label, and a primitive (draw|deal_all|play|discard|capture|pass|fold|check|call|bet|raise).",
       "3) Use nextPhase / nextActions / rotateTurn / narration on each control so the UI advances without hard-coded game rules.",
       "4) After later deals or bot moves, call set_legal_actions again to refresh the control set for the current decision.",
+      "5) Call set_instructions (or pass instructions on create_game) with student-facing how-to text for the How to play sidebar.",
       "Use preset 'texas-holdem' for the default poker table (seeds Deal → Check/Bet/Fold), or pass custom name/zones/jokers/mode/legalActions for any card game. Resets the table.",
     ].join(" "),
     inputSchema: {
@@ -179,6 +180,11 @@ export function WebMCPTools() {
             "Human input controls for practice mode. Define these for the game you create — they become the buttons the student clicks. Example Blackjack: [{id:'hit',label:'Hit',primitive:'draw'},{id:'stand',label:'Stand',primitive:'pass',nextPhase:'dealer_act',nextActions:[]}]. Example deal-then-bet: [{id:'deal',label:'Deal',primitive:'deal_all',count:2,nextPhase:'preflop',nextActions:[{id:'check',label:'Check',primitive:'check',rotateTurn:true},{id:'bet',label:'Bet 50',primitive:'bet',amount:50,rotateTurn:true},{id:'fold',label:'Fold',primitive:'fold',rotateTurn:true}]}].",
           items: LEGAL_ACTION_ITEM,
         },
+        instructions: {
+          type: "string",
+          description:
+            "Student-facing how-to for the How to play sidebar. Replace anytime with set_instructions.",
+        },
       },
       required: ["name"],
     } as const,
@@ -209,6 +215,10 @@ export function WebMCPTools() {
           legalActions:
             args?.legalActions !== undefined
               ? asLegalActions(args.legalActions)
+              : undefined,
+          instructions:
+            args?.instructions !== undefined
+              ? String(args.instructions)
               : undefined,
         });
         return ok({
@@ -615,6 +625,27 @@ export function WebMCPTools() {
           fromAgent: true,
         });
         return ok(gameStore.getStatePayload());
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "set_instructions",
+    description:
+      "Replace the student-facing How to play sidebar. Write rules, goal, and what the human should do this turn. Call again when the game or decision changes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string" },
+      },
+      required: ["text"],
+    } as const,
+    execute: async (args) => {
+      try {
+        gameStore.setInstructions(String(args?.text ?? ""));
+        return ok({ instructions: gameStore.getSnapshot()?.instructions ?? "" });
       } catch (e) {
         return fail(e);
       }

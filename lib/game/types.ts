@@ -132,6 +132,8 @@ export interface GameSession {
   cards: Card[];
   chips: ChipLedger | null;
   narration: NarrationEntry[];
+  /** Student-facing how-to text; written by the agent. */
+  instructions: string;
   startedAt: number;
 }
 
@@ -153,6 +155,8 @@ export interface CreateGameOptions {
   legalActions?: LegalAction[];
   /** Starting phase label (default waiting_to_deal) */
   phase?: string;
+  /** Student-facing how-to; shown in the instructions sidebar */
+  instructions?: string;
 }
 
 export interface CardPublicView {
@@ -184,5 +188,6 @@ export interface HumanGameView {
   discardCount: number;
   play: CardPublicView[];
   narration: NarrationEntry[];
+  instructions: string;
   chips: ChipLedger | null;
 }

@@ -18,7 +18,7 @@ export function Hand({
 }) {
   return (
     <div className="flex w-full flex-col items-center gap-2">
-      <div className="flex flex-wrap items-end justify-center gap-1">
+      <div className="flex flex-wrap items-end justify-center gap-2">
         {cards.length === 0 ? (
           <p className="text-xs text-emerald-600">No cards</p>
         ) : (

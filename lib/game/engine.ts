@@ -155,6 +155,7 @@ export function createSession(options: CreateGameOptions): GameSession {
     cards: shuffle(createDeck(jokers)),
     chips,
     narration: [],
+    instructions: options.instructions ?? "",
     startedAt: Date.now(),
   };
 }
@@ -412,6 +413,13 @@ export function narrate(session: GameSession, text: string): GameSession {
   };
 }
 
+export function setInstructions(
+  session: GameSession,
+  text: string,
+): GameSession {
+  return { ...session, instructions: text };
+}
+
 export function chipAction(
   session: GameSession,
   playerId: string,
@@ -566,6 +574,7 @@ export function getHumanView(session: GameSession): HumanGameView {
     discardCount: discardCards.length,
     play,
     narration: session.narration,
+    instructions: session.instructions,
     chips: session.chips,
   };
 }
@@ -585,6 +594,7 @@ export function getOmniscientState(session: GameSession) {
     players: session.players,
     chips: session.chips,
     narration: session.narration,
+    instructions: session.instructions,
     cards: session.cards.map((c) => ({
       id: c.id,
       rank: c.rank,

@@ -8,9 +8,8 @@ import { PlayArea } from "@/components/zones/play-area";
 import { StockPile } from "@/components/zones/stock-pile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { TableSidebars } from "@/components/game/instructions-sidebar";
 import { WebMCPStatus } from "@/components/webmcp/webmcp-status";
 import { WebMCPTools } from "@/components/webmcp/webmcp-tools";
 import {
@@ -98,12 +97,12 @@ export function GameTable() {
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-[#0b1f14] text-emerald-50">
+    <div className="flex min-h-full flex-1 flex-col bg-[#0b1f14] text-base text-emerald-50">
       <WebMCPTools />
 
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-900/60 px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-900/60 px-4 py-3 text-base">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-sm font-semibold tracking-wide text-emerald-100">
+          <h1 className="text-lg font-semibold tracking-wide text-emerald-100">
             Card Table
           </h1>
           {session ? (
@@ -133,9 +132,16 @@ export function GameTable() {
         </div>
       </header>
 
-      {!session || !view ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-          <p className="max-w-md text-sm text-emerald-200/80">
+      <div className="flex min-h-0 flex-1">
+        {session && view && (
+          <TableSidebars
+            logs={view.narration}
+            instructions={view.instructions}
+          />
+        )}
+        {!session || !view ? (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+          <p className="max-w-md text-emerald-200/80">
             Create Texas Hold&apos;em to start, or ask a coding agent over WebMCP
             to create any card game.
           </p>
@@ -158,7 +164,7 @@ export function GameTable() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4">
           {/* Bot seats */}
           <div className="flex flex-wrap justify-center gap-4">
             {bots.map((bot) => (
@@ -168,7 +174,7 @@ export function GameTable() {
                   bot.folded ? "opacity-40" : ""
                 } ${view.turnPlayerId === bot.id ? "ring-1 ring-amber-400/60" : ""}`}
               >
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-sm">
                   <span className="font-medium text-emerald-100">{bot.name}</span>
                   {bot.chips !== null && (
                     <span className="text-amber-300/90">{bot.chips}</span>
@@ -219,7 +225,7 @@ export function GameTable() {
           {/* Center table */}
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-emerald-900/40 bg-[radial-gradient(ellipse_at_center,#14532d_0%,#052e16_70%)] px-4 py-8 shadow-inner">
             {view.chips && (
-              <div className="text-xs text-amber-200/90">
+              <div className="text-sm text-amber-200/90">
                 Pot · {view.chips.pot}
                 {view.chips.currentBet > 0
                   ? ` · Bet ${view.chips.currentBet}`
@@ -243,7 +249,7 @@ export function GameTable() {
               view.turnPlayerId === "human" ? "ring-1 ring-amber-400/60" : ""
             }`}
           >
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-sm">
               <span className="font-medium">You</span>
               {human?.chips !== null && human?.chips !== undefined && (
                 <span className="text-amber-300/90">{human.chips} chips</span>
@@ -280,15 +286,15 @@ export function GameTable() {
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-2">
             <div className="flex flex-wrap items-center justify-center gap-2">
               {session.mode === "tutorial" ? (
-                <p className="text-xs text-emerald-400/80">
+                <p className="text-sm text-emerald-400/80">
                   Tutorial mode — waiting for the agent to move and narrate.
                 </p>
               ) : !isHumanTurn ? (
-                <p className="text-xs text-emerald-400/80">
+                <p className="text-sm text-emerald-400/80">
                   Waiting for {view.turnPlayerName ?? "another player"}…
                 </p>
               ) : view.legalActions.length === 0 ? (
-                <p className="text-xs text-emerald-400/80">
+                <p className="text-sm text-emerald-400/80">
                   No human controls yet. Ask the agent to pass legalActions on
                   create_game or call set_legal_actions.
                 </p>
@@ -317,7 +323,7 @@ export function GameTable() {
                             [action.id]: e.target.value,
                           }))
                         }
-                        className="h-8 w-20 rounded-md border border-emerald-700/60 bg-emerald-950/40 px-2 text-xs text-emerald-50 placeholder:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                        className="h-8 w-20 rounded-md border border-emerald-700/60 bg-emerald-950/40 px-2 text-sm text-emerald-50 placeholder:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                         aria-label={`Amount for ${action.label}`}
                       />
                     )}
@@ -345,31 +351,12 @@ export function GameTable() {
               </Button>
             </div>
             {error && (
-              <p className="text-center text-xs text-red-400">{error}</p>
+              <p className="text-center text-sm text-red-400">{error}</p>
             )}
           </div>
-
-          <Separator />
-
-          {/* Narration */}
-          <ScrollArea className="mx-auto h-24 w-full max-w-3xl rounded-md border border-emerald-900/40 bg-black/20 px-3 py-2">
-            {view.narration.length === 0 ? (
-              <p className="text-xs text-emerald-700">No narration yet.</p>
-            ) : (
-              <ul className="space-y-1">
-                {view.narration
-                  .slice()
-                  .reverse()
-                  .map((n) => (
-                    <li key={n.id} className="text-xs text-emerald-200/90">
-                      {n.text}
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </ScrollArea>
         </div>
       )}
+      </div>
     </div>
   );
 }
