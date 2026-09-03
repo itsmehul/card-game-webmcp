@@ -1238,6 +1238,55 @@ function GameSessionTools() {
 }
 
 /**
+ * Tutorial-only tool: blocks until the human clicks a legalAction button on
+ * the table, then returns what they did. Lets the agent proceed to the next
+ * tutorial step without the user having to type "done". The card table stays
+ * the single source of truth — the await resolves from the store's
+ * applyHumanLegalAction, not from a client-side elicitation form.
+ */
+function TutorialAwaitTool() {
+  useWebMCP({
+    name: "await_user_action",
+    description:
+      "Block until the human clicks a legalAction button on the table, then return what they did. Tutorial-only. Pass expectActionId to wait for a specific recommended action; if the human clicks a different action the result has matched:false so you can re-narrate and re-highlight. Always call highlight + narrate + set_legal_actions first so the student knows what to click. Resolves with { timedOut: true } after timeoutMs; rejects if the game ends while waiting.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        expectActionId: {
+          type: "string",
+          description:
+            "Action id to wait for (e.g. 'hit'). Omit to accept the next action of any kind.",
+        },
+        timeoutMs: {
+          type: "number",
+          description:
+            "Optional max wait in milliseconds. On expiry resolves with { timedOut: true } instead of erroring.",
+        },
+      },
+    } as const,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    execute: async (args) => {
+      try {
+        const result = await gameStore.awaitUserAction({
+          expectActionId: args?.expectActionId
+            ? String(args.expectActionId)
+            : undefined,
+          timeoutMs: args?.timeoutMs ? Number(args.timeoutMs) : undefined,
+        });
+        return ok(result);
+      } catch (e) {
+        return fail(
+          e,
+          "Game ended while waiting. Recreate the session and re-teach the step.",
+        );
+      }
+    },
+  });
+
+  return null;
+}
+
+/**
  * Resources — always registered so agents can read the playbook and
  * reference even before a game starts.
  */
@@ -1298,6 +1347,7 @@ export function WebMCPTools() {
     <>
       <DiscoveryTools />
       {session && <GameSessionTools />}
+      {session?.mode === "tutorial" && <TutorialAwaitTool />}
       <SkillResources />
     </>
   );

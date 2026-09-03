@@ -42,6 +42,8 @@ import {
   startPresetSession,
 } from "./presets";
 import type {
+  AwaitUserActionOptions,
+  AwaitUserActionResult,
   ChipActionKind,
   CreateGameOptions,
   DealSpec,
@@ -61,6 +63,32 @@ type Listener = () => void;
 
 let session: GameSession | null = null;
 const listeners = new Set<Listener>();
+
+/**
+ * Tutorial await registry. At most one `await_user_action` call is pending at
+ * a time — the agent's turn blocks on the tool, so true concurrency is not
+ * possible in normal flow; the guards below are defensive.
+ */
+type PendingAwait = {
+  expectActionId?: string;
+  timer?: ReturnType<typeof setTimeout>;
+  resolve: (result: AwaitUserActionResult) => void;
+  reject: (err: Error) => void;
+};
+let pendingAwait: PendingAwait | null = null;
+
+function clearAwaitTimer(p: PendingAwait) {
+  if (p.timer) clearTimeout(p.timer);
+}
+
+/** Reject an in-flight await because the session was replaced or cleared. */
+function cancelPendingAwait(reason: string) {
+  if (!pendingAwait) return;
+  clearAwaitTimer(pendingAwait);
+  const p = pendingAwait;
+  pendingAwait = null;
+  p.reject(new Error(reason));
+}
 
 function emit() {
   for (const listener of listeners) listener();
@@ -97,6 +125,7 @@ export const gameStore = {
     const next = known
       ? createFromPreset(options.preset!, options)
       : createSession(options);
+    cancelPendingAwait("A new game started while awaiting a user action.");
     setSession(next);
     return next;
   },
@@ -106,10 +135,12 @@ export const gameStore = {
     botCount?: number,
   ) {
     const next = startPresetSession(id, mode, botCount);
+    cancelPendingAwait("A new game started while awaiting a user action.");
     setSession(next);
     return next;
   },
   clear() {
+    cancelPendingAwait("Game ended while awaiting a user action.");
     setSession(null);
   },
   shuffle() {
@@ -233,7 +264,58 @@ export const gameStore = {
     opts?: { selectedCardIds?: string[]; amount?: number },
   ) {
     setSession(applyHumanLegalAction(requireSession(), action, opts));
+    // Settle a pending tutorial await, if any. The await resolves with the
+    // *actual* action performed; matched is false when the agent expected a
+    // different action id so it can course-correct.
+    if (pendingAwait) {
+      clearAwaitTimer(pendingAwait);
+      const p = pendingAwait;
+      pendingAwait = null;
+      const matched = p.expectActionId ? action.id === p.expectActionId : true;
+      p.resolve({
+        timedOut: false,
+        actionId: action.id,
+        label: action.label,
+        matched,
+        selectedCardIds: opts?.selectedCardIds ?? [],
+        amount: opts?.amount,
+      });
+    }
     return session!;
+  },
+  /**
+   * Block until the human clicks a legalAction button on the table, then
+   * resolve with what they did. Tutorial-only. Only one await may be pending
+   * at a time; a second call while one is pending rejects immediately.
+   * Resolves with { timedOut: true } after timeoutMs. Rejects if the game is
+   * cleared or replaced while waiting.
+   */
+  awaitUserAction(
+    opts: AwaitUserActionOptions = {},
+  ): Promise<AwaitUserActionResult> {
+    if (pendingAwait) {
+      return Promise.reject(
+        new Error(
+          "Another await_user_action is already in progress. Wait for it to resolve before calling again.",
+        ),
+      );
+    }
+    return new Promise<AwaitUserActionResult>((resolve, reject) => {
+      const entry: PendingAwait = {
+        expectActionId: opts.expectActionId,
+        resolve,
+        reject,
+      };
+      if (opts.timeoutMs && opts.timeoutMs > 0) {
+        entry.timer = setTimeout(() => {
+          if (pendingAwait === entry) {
+            pendingAwait = null;
+            resolve({ timedOut: true });
+          }
+        }, opts.timeoutMs);
+      }
+      pendingAwait = entry;
+    });
   },
   setMode(mode: SessionMode) {
     setSession(setMode(requireSession(), mode));

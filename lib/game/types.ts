@@ -321,6 +321,31 @@ export interface CardPublicView {
   suit?: Suit;
 }
 
+/** Outcome of awaiting a human legal-action click during a tutorial. */
+export interface AwaitUserActionResult {
+  /** True when the wait expired before any click was received. */
+  timedOut: boolean;
+  /** True when the await was cancelled by a new game / clear. */
+  cancelled?: boolean;
+  /** The action id the human clicked (absent on timeout / cancel). */
+  actionId?: string;
+  /** The clicked action's label (absent on timeout / cancel). */
+  label?: string;
+  /** True when expectActionId was omitted or matched the clicked action. */
+  matched?: boolean;
+  /** Card ids the human had selected when they clicked (absent on timeout / cancel). */
+  selectedCardIds?: string[];
+  /** Amount the human entered for a promptAmount action (absent on timeout / cancel). */
+  amount?: number;
+}
+
+export interface AwaitUserActionOptions {
+  /** Only this action id resolves the await; others resolve with matched:false. */
+  expectActionId?: string;
+  /** Max wait in ms. On expiry resolves with { timedOut: true }. */
+  timeoutMs?: number;
+}
+
 export interface HumanGameView {
   name: string;
   mode: SessionMode;
