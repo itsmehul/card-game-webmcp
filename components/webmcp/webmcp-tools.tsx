@@ -43,6 +43,7 @@ Host names are **suffixed** (\`list_presets_bb8b\`, not \`list_presets\`). Looki
 | Compact state (if mutate result lost) | \`get_game_state\` |
 | Human buttons / next decision | \`set_legal_actions\` |
 | Sidebar how-to | \`set_instructions\` |
+| Focus student attention | \`highlight\` (target + optional label; null to clear) |
 | Student log | \`narrate\` (short) |
 | Phase label | \`set_phase\` |
 | Whose turn | \`set_turn\` (\`next\` / \`previous\` / \`same\` / \`first\` / id) or \`rotate_turn\` |
@@ -1249,6 +1250,58 @@ function GameSessionTools() {
         return ok({ instructions: gameStore.getSnapshot()?.instructions ?? "" });
       } catch (e) {
         return fail(e);
+      }
+    },
+  });
+
+  useWebMCP({
+    name: "highlight",
+    description:
+      "Visually highlight a UI element with a glowing border so the student knows where to look or click. Only available in tutorial mode. Call with no arguments (or target null) to clear the highlight.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target: {
+          type: "string",
+          enum: [
+            "stock",
+            "hand",
+            "play",
+            "discard",
+            "capture",
+            "actions",
+            "pot",
+          ],
+          description:
+            "Which element to highlight. Also accepts a player id (human, bot_1, …) to highlight that player's entire seat. Omit or pass null to clear.",
+        },
+        playerId: {
+          type: "string",
+          description:
+            "Optional player scope for zone targets — e.g. highlight bot_1's hand rather than the human's. Defaults to human for hand/capture.",
+        },
+        label: {
+          type: "string",
+          description: "Optional short label shown near the highlighted element (e.g. 'Click here', 'Your hand').",
+        },
+      },
+    } as const,
+    annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
+    execute: async (args) => {
+      try {
+        if (!args?.target) {
+          gameStore.setHighlight(null);
+          return ok({ highlight: null });
+        }
+        const highlight = {
+          target: String(args.target),
+          playerId: args.playerId ? String(args.playerId) : undefined,
+          label: args.label ? String(args.label) : undefined,
+        };
+        gameStore.setHighlight(highlight);
+        return ok({ highlight });
+      } catch (e) {
+        return fail(e, "A game session must be active. Call create_game first.");
       }
     },
   });

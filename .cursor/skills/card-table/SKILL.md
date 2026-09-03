@@ -35,6 +35,7 @@ Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking u
 | Compact state (if mutate result lost) | `get_game_state` |
 | Human buttons / next decision | `set_legal_actions` |
 | Sidebar how-to | `set_instructions` |
+| Focus student attention | `highlight` (target + optional label; null to clear) |
 | Student log | `narrate` (short) |
 | Phase label | `set_phase` |
 | Whose turn | `set_turn` (`next` / `previous` / `same` / `first` / id) or `rotate_turn` |

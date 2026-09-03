@@ -236,6 +236,26 @@ export interface EnabledZones {
 /** How cards in the shared play zone are presented. */
 export type PlayLayout = "spread" | "stack";
 
+/** Element the agent wants to visually highlight for the student. */
+export type HighlightTarget =
+  | "stock"
+  | "hand"
+  | "play"
+  | "discard"
+  | "capture"
+  | "actions"
+  | "pot"
+  | (string & {}); // also accepts a player id like "human", "bot_1"
+
+export interface Highlight {
+  /** Which UI element to glow. */
+  target: HighlightTarget;
+  /** Optional player scope (e.g. highlight bot_1's hand vs human's hand). */
+  playerId?: string;
+  /** Optional short label shown near the highlight. */
+  label?: string;
+}
+
 export interface NarrationEntry {
   id: string;
   text: string;
@@ -259,6 +279,8 @@ export interface GameSession {
   narration: NarrationEntry[];
   /** Student-facing how-to text; written by the agent. */
   instructions: string;
+  /** Active tutorial highlight; null when nothing is highlighted. */
+  highlight: Highlight | null;
   startedAt: number;
 }
 
@@ -318,5 +340,6 @@ export interface HumanGameView {
   play: CardPublicView[];
   narration: NarrationEntry[];
   instructions: string;
+  highlight: Highlight | null;
   chips: ChipLedger | null;
 }

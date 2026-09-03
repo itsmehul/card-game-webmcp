@@ -167,6 +167,7 @@ export function createSession(options: CreateGameOptions): GameSession {
     chips,
     narration: [],
     instructions: options.instructions ?? "",
+    highlight: null,
     startedAt: Date.now(),
   };
 }
@@ -1114,6 +1115,7 @@ export function getHumanView(session: GameSession): HumanGameView {
     play,
     narration: session.narration,
     instructions: session.instructions,
+    highlight: session.highlight,
     chips: session.chips,
   };
 }

@@ -47,6 +47,7 @@ import type {
   DealSpec,
   GameSession,
   HandScoring,
+  Highlight,
   LegalAction,
   SeatTarget,
   SessionMode,
@@ -248,6 +249,11 @@ export const gameStore = {
   },
   setInstructions(text: string) {
     setSession(setInstructions(requireSession(), text));
+    return session!;
+  },
+  setHighlight(highlight: Highlight | null) {
+    const s = requireSession();
+    setSession({ ...s, highlight });
     return session!;
   },
   /**

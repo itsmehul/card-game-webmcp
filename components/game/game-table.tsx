@@ -23,6 +23,9 @@ import {
 } from "@/lib/game";
 import { PlayingCard } from "@/components/cards/playing-card";
 
+const HIGHLIGHT_CLASSES =
+  "ring-2 ring-sky-400 shadow-[0_0_16px_4px_rgba(56,189,248,0.45)] animate-[highlight-pulse_2s_ease-in-out_infinite] relative";
+
 export function GameTable() {
   const session = useGameSession();
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
@@ -35,11 +38,25 @@ export function GameTable() {
     [session],
   );
 
+  const highlight = view?.highlight ?? null;
+
+  function isHighlighted(target: string, playerId?: string): boolean {
+    if (!highlight) return false;
+    // Target matches a player id directly (highlight the whole seat)
+    if (highlight.target === playerId) return true;
+    // Zone target matches
+    if (highlight.target !== target) return false;
+    // If highlight has a playerId scope, it must match
+    if (highlight.playerId && playerId && highlight.playerId !== playerId) return false;
+    return true;
+  }
+
   const human = view?.players.find((p) => p.id === "human");
   const bots = view?.players.filter((p) => p.kind === "bot") ?? [];
   const isPractice = session?.mode === "practice";
+  const isTutorial = session?.mode === "tutorial";
   const isHumanTurn = view?.turnPlayerId === "human";
-  const interactive = Boolean(isPractice && isHumanTurn);
+  const interactive = Boolean((isPractice || isTutorial) && isHumanTurn);
 
   function runSafe(fn: () => void) {
     try {
@@ -165,10 +182,13 @@ export function GameTable() {
             {bots.map((bot) => (
               <div
                 key={bot.id}
-                className={`flex min-w-[9rem] w-full max-w-3xl flex-col items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 ${
+                className={`flex min-w-[9rem] w-full max-w-3xl flex-col items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 transition-shadow duration-300 ${
                   bot.folded ? "opacity-40" : ""
-                } ${view.turnPlayerId === bot.id ? "ring-1 ring-amber-400/60" : ""}`}
+                } ${isHighlighted("hand", bot.id) || isHighlighted(bot.id) ? HIGHLIGHT_CLASSES : view.turnPlayerId === bot.id ? "ring-1 ring-amber-400/60" : ""}`}
               >
+                {(isHighlighted("hand", bot.id) || isHighlighted(bot.id)) && highlight?.label && (
+                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white z-10">{highlight.label}</span>
+                )}
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-medium text-emerald-100">{bot.name}</span>
                   {bot.chips !== null && (
@@ -240,40 +260,61 @@ export function GameTable() {
           {/* Center table */}
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-emerald-900/40 bg-[radial-gradient(ellipse_at_center,#14532d_0%,#052e16_70%)] px-4 py-8 shadow-inner">
             {view.chips && (
-              <div className="text-sm text-amber-200/90">
+              <div className={`text-sm text-amber-200/90 rounded px-2 py-1 transition-shadow duration-300 ${isHighlighted("pot") ? HIGHLIGHT_CLASSES : ""}`}>
                 Pot · {view.chips.pot}
                 {view.chips.currentBet > 0
                   ? ` · Bet ${view.chips.currentBet}`
                   : ""}
+                {isHighlighted("pot") && highlight?.label && (
+                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
+                )}
               </div>
             )}
             <div className="flex flex-wrap items-end justify-center gap-6">
               {session.enabledZones.stock && (
-                <StockPile count={view.stockCount} />
+                <div className={`rounded-lg transition-shadow duration-300 ${isHighlighted("stock") ? HIGHLIGHT_CLASSES + " p-1" : ""}`}>
+                  <StockPile count={view.stockCount} />
+                  {isHighlighted("stock") && highlight?.label && (
+                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
+                  )}
+                </div>
               )}
               {session.enabledZones.play && (
-                <PlayArea
-                  cards={view.play}
-                  layout={
-                    session.playLayout ??
-                    (view.play.length > 1 && view.play.every((card) => !card.faceUp)
-                      ? "stack"
-                      : "spread")
-                  }
-                />
+                <div className={`rounded-lg transition-shadow duration-300 ${isHighlighted("play") ? HIGHLIGHT_CLASSES + " p-1" : ""}`}>
+                  <PlayArea
+                    cards={view.play}
+                    layout={
+                      session.playLayout ??
+                      (view.play.length > 1 && view.play.every((card) => !card.faceUp)
+                        ? "stack"
+                        : "spread")
+                    }
+                  />
+                  {isHighlighted("play") && highlight?.label && (
+                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
+                  )}
+                </div>
               )}
               {session.enabledZones.discard && (
-                <DiscardPile top={view.discardTop} count={view.discardCount} />
+                <div className={`rounded-lg transition-shadow duration-300 ${isHighlighted("discard") ? HIGHLIGHT_CLASSES + " p-1" : ""}`}>
+                  <DiscardPile top={view.discardTop} count={view.discardCount} />
+                  {isHighlighted("discard") && highlight?.label && (
+                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
+                  )}
+                </div>
               )}
             </div>
           </div>
 
           {/* Human seat */}
           <div
-            className={`mx-auto flex w-full max-w-3xl flex-col items-center gap-3 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-3 ${
-              view.turnPlayerId === "human" ? "ring-1 ring-amber-400/60" : ""
+            className={`mx-auto flex w-full max-w-3xl flex-col items-center gap-3 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-3 transition-shadow duration-300 ${
+              isHighlighted("hand", "human") || isHighlighted("human") ? HIGHLIGHT_CLASSES : view.turnPlayerId === "human" ? "ring-1 ring-amber-400/60" : ""
             }`}
           >
+            {(isHighlighted("hand", "human") || isHighlighted("human")) && highlight?.label && (
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white z-10">{highlight.label}</span>
+            )}
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium">You</span>
               {human?.chips !== null && human?.chips !== undefined && (
@@ -308,13 +349,12 @@ export function GameTable() {
           </div>
 
           {/* Actions — driven entirely by agent-defined legalActions */}
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-2">
+          <div className={`mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-lg transition-shadow duration-300 ${isHighlighted("actions") ? HIGHLIGHT_CLASSES + " p-2" : ""}`}>
+            {isHighlighted("actions") && highlight?.label && (
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
+            )}
             <div className="flex flex-wrap items-center justify-center gap-2">
-              {session.mode === "tutorial" ? (
-                <p className="text-sm text-emerald-400/80">
-                  Tutorial mode — waiting for the agent to move and narrate.
-                </p>
-              ) : !isHumanTurn ? (
+              {!isHumanTurn ? (
                 <p className="text-sm text-emerald-400/80">
                   Waiting for {view.turnPlayerName ?? "another player"}…
                 </p>
