@@ -382,7 +382,9 @@ export const gameStore = {
   }) {
     const s = requireSession();
     const isHuman = input.playerId === "human";
-    if (input.fromAgent && isHuman) {
+    if (input.fromAgent && (isHuman || input.primitive === "play_all")) {
+      // play_all moves every seat at once, so it inevitably performs the
+      // human's action too — simultaneous flips are human-button driven.
       throw new Error(
         "The human plays their own cards via the on-screen buttons in both tutorial and practice mode. To teach in tutorial, highlight the action (highlight) and narrate what to do (narrate) — do not move the human seat.",
       );

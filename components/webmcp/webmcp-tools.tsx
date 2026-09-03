@@ -285,6 +285,24 @@ function asLegalActions(raw: unknown): LegalAction[] {
 }
 
 /**
+ * The human seat is always button-driven: the human clicks the on-screen
+ * legalActions buttons in both tutorial and practice mode, and agents must
+ * never perform the human's actions. Guard every voluntary move tool so a
+ * misrouted call fails loudly with a recovery hint instead of silently
+ * playing for the human.
+ */
+const HUMAN_SEAT_ERROR =
+  "The human plays their own cards via the on-screen buttons in both tutorial and practice mode. To teach in tutorial, highlight the action (highlight) and narrate what to do (narrate) — do not move the human seat.";
+
+function assertNotHumanSeat(playerId: unknown): string {
+  const id = String(playerId);
+  if (id === "human") {
+    throw new Error(HUMAN_SEAT_ERROR);
+  }
+  return id;
+}
+
+/**
  * Discovery & setup tools — always registered so the agent can browse
  * presets and create a game even when no session is active.
  *
@@ -514,7 +532,7 @@ function GameSessionTools() {
 
   useWebMCP({
     name: "draw",
-    description: "Draw one or more cards from the stock into a player's hand. Defaults to 1 card with hidden visibility.",
+    description: "Draw one or more cards from the stock into a BOT seat's hand (e.g. a bot's hit or Go Fish draw). The human seat is always rejected — the human draws via the on-screen buttons. Defaults to 1 card with hidden visibility.",
     inputSchema: {
       type: "object",
       properties: {
@@ -531,7 +549,7 @@ function GameSessionTools() {
     execute: async (args) => {
       try {
         gameStore.draw(
-          String(args?.playerId),
+          assertNotHumanSeat(args?.playerId),
           Number(args?.count ?? 1),
           args?.visibility as "hidden" | "public" | "unknown" | undefined,
         );
@@ -544,7 +562,7 @@ function GameSessionTools() {
 
   useWebMCP({
     name: "play",
-    description: "Move one or more cards from a player's hand into the shared play area face-up.",
+    description: "Move one or more cards from a BOT seat's hand into the shared play area face-up. The human seat is always rejected — the human plays via the on-screen buttons.",
     inputSchema: {
       type: "object",
       properties: {
@@ -564,7 +582,7 @@ function GameSessionTools() {
     execute: async (args) => {
       try {
         gameStore.play(
-          String(args?.playerId),
+          assertNotHumanSeat(args?.playerId),
           (args?.cardIds as string[]) ?? [],
           args?.visibility as "hidden" | "public" | "unknown" | undefined,
         );
@@ -577,7 +595,7 @@ function GameSessionTools() {
 
   useWebMCP({
     name: "discard",
-    description: "Move one or more cards from a player's hand to the shared discard pile.",
+    description: "Move one or more cards from a BOT seat's hand to the shared discard pile. The human seat is always rejected — the human discards via the on-screen buttons.",
     inputSchema: {
       type: "object",
       properties: {
@@ -597,7 +615,7 @@ function GameSessionTools() {
     execute: async (args) => {
       try {
         gameStore.discard(
-          String(args?.playerId),
+          assertNotHumanSeat(args?.playerId),
           (args?.cardIds as string[]) ?? [],
           args?.visibility as "hidden" | "public" | "unknown" | undefined,
         );
@@ -610,7 +628,7 @@ function GameSessionTools() {
 
   useWebMCP({
     name: "capture",
-    description: "Move one or more cards into a player's capture (score) pile, typically after winning a trick or completing a set.",
+    description: "Move one or more cards into a BOT seat's capture (score) pile, typically after the bot wins a trick or completes a set. The human seat is always rejected — the human captures via the on-screen buttons.",
     inputSchema: {
       type: "object",
       properties: {
@@ -630,7 +648,7 @@ function GameSessionTools() {
     execute: async (args) => {
       try {
         gameStore.capture(
-          String(args?.playerId),
+          assertNotHumanSeat(args?.playerId),
           (args?.cardIds as string[]) ?? [],
           args?.visibility as "hidden" | "public" | "unknown" | undefined,
         );
@@ -738,7 +756,7 @@ function GameSessionTools() {
   useWebMCP({
     name: "chip_action",
     description:
-      "Apply a betting action for a player. Fold removes them from the hand; check passes when no bet is owed; call matches the current bet; bet and raise require a positive amount.",
+      "Apply a betting action for a BOT seat. Fold removes them from the hand; check passes when no bet is owed; call matches the current bet; bet and raise require a positive amount. The human seat is always rejected — the human bets via the on-screen buttons.",
     inputSchema: {
       type: "object",
       properties: {
@@ -758,7 +776,7 @@ function GameSessionTools() {
     execute: async (args) => {
       try {
         gameStore.chipAction(
-          String(args?.playerId),
+          assertNotHumanSeat(args?.playerId),
           args?.action as "fold" | "check" | "call" | "bet" | "raise",
           Number(args?.amount ?? 0),
         );
@@ -871,12 +889,16 @@ function GameSessionTools() {
   useWebMCP({
     name: "transfer_cards",
     description:
-      "Move cards between two seats. Set rank to take every card of that rank (the Go Fish ask), cardIds for explicit cards, or count for the top N from the source. When nothing matches and allowEmpty is false, the tool returns an error — that error is the 'go fish' signal to draw from stock instead.",
+      "Move cards between two seats. Set rank to take every card of that rank (the Go Fish ask), cardIds for explicit cards, or count for the top N from the source. When nothing matches and allowEmpty is false, the tool returns an error — that error is the 'go fish' signal to draw from stock instead. The source seat must never be the human — taking the human's cards is their decision, made via the on-screen buttons.",
     inputSchema: TRANSFER_SPEC,
     annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
-        gameStore.transfer(args as unknown as TransferSpec);
+        const spec = args as unknown as TransferSpec;
+        if (spec.from === "human") {
+          throw new Error(HUMAN_SEAT_ERROR);
+        }
+        gameStore.transfer(spec);
         return ok(gameStore.getStatePayload());
       } catch (e) {
         return fail(e);
@@ -887,7 +909,7 @@ function GameSessionTools() {
   useWebMCP({
     name: "play_all",
     description:
-      "Every active (non-folded) seat simultaneously plays cards from hand into the play area. Used for games like War where all players flip at once instead of taking turns.",
+      "Every active (non-folded) seat simultaneously plays cards from hand into the play area. Used for games like War where all players flip at once instead of taking turns. Always rejected for agent use: a simultaneous flip includes the human's cards, and the human's flip is driven by their on-screen button (the legalActions play_all primitive) — in tutorial, highlight the flip button and narrate instead.",
     inputSchema: {
       type: "object",
       properties: {
@@ -896,16 +918,12 @@ function GameSessionTools() {
       },
     } as const,
     annotations: { readOnlyHint: false, openWorldHint: false },
-    execute: async (args) => {
-      try {
-        gameStore.playAll(
-          Number(args?.count ?? 1),
-          (args?.visibility as Visibility | undefined) ?? "public",
-        );
-        return ok(gameStore.getStatePayload());
-      } catch (e) {
-        return fail(e);
-      }
+    execute: async () => {
+      return fail(
+        new Error(
+          `play_all moves every seat including the human. ${HUMAN_SEAT_ERROR} Simultaneous flips (e.g. War) are started by the human's Flip button.`,
+        ),
+      );
     },
   });
 
@@ -946,7 +964,7 @@ function GameSessionTools() {
   useWebMCP({
     name: "collect_sets",
     description:
-      "Move every complete same-rank set from a seat's hand into their capture pile. Use size 4 for Go Fish books or size 2 for pairs. Returns the collected sets so you can narrate which ranks were completed.",
+      "Move every complete same-rank set from a BOT seat's hand into their capture pile. Use size 4 for Go Fish books or size 2 for pairs. Returns the collected sets so you can narrate which ranks were completed. The human seat is always rejected — the human banks sets via the on-screen buttons.",
     inputSchema: {
       type: "object",
       properties: {
@@ -962,7 +980,7 @@ function GameSessionTools() {
     execute: async (args) => {
       try {
         const { sets } = gameStore.collectSets(
-          String(args?.playerId),
+          assertNotHumanSeat(args?.playerId),
           Number(args?.size ?? 4),
         );
         return ok({ sets, state: gameStore.getStatePayload() });

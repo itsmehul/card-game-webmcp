@@ -26,7 +26,7 @@ Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking u
 
 1. `list_presets` before inventing a game.
 2. Catalog → `create_game` with `preset` (name optional; the preset supplies it). Custom → omit `preset`; pass `name`, zones, `legalActions`, `instructions`.
-3. Practice: human clicks buttons; never `apply_move` for `human`. Tutorial: agent may move any seat.
+3. **Never move the human seat — in either mode.** The human clicks the on-screen `legalActions` buttons. Seat-scoped move tools (`draw`, `play`, `discard`, `capture`, `collect_sets`, `chip_action`, `apply_move`, `transfer_cards` from, `play_all`) hard-reject the human; use them for **bot** seats and dealer/table work only.
    Tutorial step recipe: `highlight` the target + `narrate` what to do + `set_legal_actions` for the buttons, then `await_user_action({ expectActionId })` to block until the human clicks. The result carries `matched:false` if they clicked a different button — re-narrate and re-await. `await_user_action` rejects if the game ends while waiting.
 4. Mutating tools return compact agent state (in-play cards only, `stockCount`, last 3 narration lines). Use that result for the next decision — do **not** call `get_game_state` again unless the previous payload was lost.
 
@@ -45,14 +45,14 @@ Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking u
 | Wait for human click (tutorial) | `await_user_action` (`expectActionId` optional; `timeoutMs` optional) |
 | One-seat deal / community | `deal` (`playerId: play` for tableau) |
 | Uneven / mixed-visibility deal | `deal_batch` |
-| Hit / draw | `draw` |
-| Hand → play | `play` |
-| Simultaneous flip (War) | `play_all` |
-| Hand → discard | `discard` |
-| Into score pile | `capture` |
+| Hit / draw (bot) | `draw` |
+| Bot hand → play | `play` |
+| Simultaneous flip (War) | Human's Flip button (`play_all` is rejected for agents — it would move the human too) |
+| Bot hand → discard | `discard` |
+| Bot into score pile | `capture` |
 | Flip visibility | `reveal` |
-| Ask for a rank (Go Fish) | `transfer_cards` (`rank` or `rankFromSelection`; empty + `allowEmpty: false` = go fish) |
-| Books / pairs | `collect_sets` (`size` 4 or 2) |
+| Ask for a rank (Go Fish) | `transfer_cards` (`rank` or `rankFromSelection`; empty + `allowEmpty: false` = go fish; `from` is always a bot, never `human`) |
+| Bot books / pairs | `collect_sets` (`size` 4 or 2) |
 | Who wins a zone | `compare_zone` then `sweep_zone` (`to: winner` errors on a tie) |
 | Hand total | `score_hand` (Blackjack: `scoring: { aceAlt: 11, bustOver: 21 }`) |
 | Forced bets | `post_blinds` |
@@ -60,7 +60,7 @@ Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking u
 | Side pots | `get_pots` then `award_pot` |
 | Off-pot chips | `award_chips` |
 | Between streets / new hand | `reset_round` (`betting` vs `hand`) |
-| Generic bot primitive | `apply_move` (not for `human` in practice) |
+| Generic bot primitive | `apply_move` (bot seats only; `play_all` rejected) |
 
 Prefer the named tool over `apply_move` when both exist (`draw`, `play`, `transfer_cards`, …).
 
@@ -68,11 +68,12 @@ Prefer the named tool over `apply_move` when both exist (`draw`, `play`, `transf
 
 - **Hold'em**: `post_blinds` → deal holes → bot `chip_action` → flop/turn/river via `deal` to `play` → `reset_round` betting → showdown `get_pots` / `award_pot`.
 - **Blackjack**: after stand/bust, `score_hand` dealer, hit dealer to 17, `award_chips`.
-- **War**: `play_all` → `compare_zone` → `sweep_zone`; on tie, more `play_all` then sweep.
+- **War**: fully button-driven — the human clicks Flip (`play_all` primitive). The agent may `compare_zone` to narrate who is ahead; never flip or sweep for the human.
 - **Go Fish**: `transfer_cards` from the asked bot; on error, `draw` and pass turn; `collect_sets` size 4.
 
 ## Rules
 
+- Never perform the human's actions — in tutorial, teach with `highlight` + `narrate` and wait for the click; in practice, the human plays unaided. Seat-scoped move tools reject `human`.
 - Do not recreate a preset that `list_presets` already lists.
 - Refresh `legalActions` whenever the legal decision changes.
 - Keep `narrate` educational and short; do not dump JSON state.
