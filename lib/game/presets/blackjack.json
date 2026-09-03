@@ -112,8 +112,7 @@
               {
                 "type": "narrate",
                 "params": { "text": "You stand. Dealer's turn." }
-              },
-              { "type": "setTurn", "params": { "playerId": "bot_1" } }
+              }
             ]
           }
         }
@@ -143,8 +142,7 @@
               {
                 "type": "narrate",
                 "params": { "text": "21. Dealer's turn." }
-              },
-              { "type": "setTurn", "params": { "playerId": "bot_1" } }
+              }
             ]
           },
           {
@@ -173,6 +171,9 @@
         "always": [{ "target": "hand_over" }]
       },
       "hand_over": {
+        "entry": [
+          { "type": "setTurn", "params": { "playerId": "human" } }
+        ],
         "meta": {
           "controls": [
             {

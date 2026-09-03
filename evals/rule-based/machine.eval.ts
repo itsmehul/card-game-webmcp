@@ -105,3 +105,32 @@ describe("all catalog machines boot", () => {
     });
   }
 });
+
+describe("blackjack turn ownership", () => {
+  it("returns turn to human after stand settles", () => {
+    const { actor } = startPresetWithActor("blackjack");
+    let s = sendHumanEvent(actor, "BET");
+    s = sendHumanEvent(actor, "DEAL");
+    s = sendHumanEvent(actor, "STAND");
+    expect(s.phase).toBe("hand_over");
+    expect(s.players[s.turnIndex]?.id).toBe("human");
+    expect(s.legalActions.map((a) => a.id)).toContain("new_hand");
+    actor.stop();
+  });
+
+  it("returns turn to human after bust settles", () => {
+    const { actor } = startPresetWithActor("blackjack");
+    let s = sendHumanEvent(actor, "BET");
+    s = sendHumanEvent(actor, "DEAL");
+    for (let i = 0; i < 12 && s.phase === "player_act"; i++) {
+      s = sendHumanEvent(actor, "HIT");
+    }
+    if (s.phase === "player_act") {
+      s = sendHumanEvent(actor, "STAND");
+    }
+    expect(s.phase).toBe("hand_over");
+    expect(s.players[s.turnIndex]?.id).toBe("human");
+    expect(s.legalActions.map((a) => a.id)).toContain("new_hand");
+    actor.stop();
+  });
+});

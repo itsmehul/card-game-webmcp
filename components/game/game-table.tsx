@@ -393,16 +393,7 @@ export function GameTable() {
               <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
             )}
             <div className="flex flex-wrap items-center justify-center gap-2">
-              {!isHumanTurn ? (
-                <p className="text-sm text-emerald-400/80">
-                  Waiting for {view.turnPlayerName ?? "another player"}…
-                </p>
-              ) : view.legalActions.length === 0 ? (
-                <p className="text-sm text-emerald-400/80">
-                  No human controls in this phase. Ask the agent to explain the
-                  game state, or start a new hand when a control appears.
-                </p>
-              ) : (
+              {view.legalActions.length > 0 ? (
                 <AnimatePresence initial={false}>
                   {view.legalActions.map((action) => (
                     <motion.div
@@ -451,6 +442,15 @@ export function GameTable() {
                     </motion.div>
                   ))}
                 </AnimatePresence>
+              ) : !isHumanTurn ? (
+                <p className="text-sm text-emerald-400/80">
+                  Waiting for {view.turnPlayerName ?? "another player"}…
+                </p>
+              ) : (
+                <p className="text-sm text-emerald-400/80">
+                  No human controls in this phase. Ask the agent to explain the
+                  game state, or start a new hand when a control appears.
+                </p>
               )}
               <Button
                 size="sm"
