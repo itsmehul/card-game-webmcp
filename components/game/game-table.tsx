@@ -140,14 +140,13 @@ export function GameTable() {
           {session ? (
             <>
               <motion.span
-                layout
                 key={`name-${session.name}`}
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
               >
                 <Badge variant="secondary">{session.name}</Badge>
               </motion.span>
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="wait" initial={false}>
                 <motion.span
                   key={`phase-${session.phase}`}
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -206,12 +205,11 @@ export function GameTable() {
       ) : (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4">
           {/* Bot seats */}
-          <motion.div layout className="flex flex-wrap justify-center gap-4">
-            <AnimatePresence mode="popLayout">
+          <div className="flex flex-wrap justify-center gap-4">
+            <AnimatePresence initial={false}>
               {bots.map((bot) => (
                 <motion.div
                   key={bot.id}
-                  layout
                   initial={{ opacity: 0, y: 16, scale: 0.95 }}
                   animate={{ opacity: bot.folded ? 0.4 : 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
@@ -262,7 +260,7 @@ export function GameTable() {
                         </div>
                       )
                     ) : (
-                      <AnimatePresence mode="popLayout">
+                      <AnimatePresence initial={false}>
                         {bot.hand.map((c) => (
                           <PlayingCard
                             key={c.id}
@@ -296,7 +294,7 @@ export function GameTable() {
                 </motion.div>
               ))}
             </AnimatePresence>
-          </motion.div>
+          </div>
 
           {/* Center table */}
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-emerald-900/40 bg-[radial-gradient(ellipse_at_center,#14532d_0%,#052e16_70%)] px-4 py-8 shadow-inner">
@@ -313,7 +311,7 @@ export function GameTable() {
             )}
             <div className="flex flex-wrap items-end justify-center gap-6">
               {session.enabledZones.stock && (
-                <div className={`rounded-lg transition-shadow duration-300 ${isHighlighted("stock") ? HIGHLIGHT_CLASSES + " p-1" : ""}`}>
+                <div className={`rounded-lg p-1 transition-shadow duration-300 ${isHighlighted("stock") ? HIGHLIGHT_CLASSES : ""}`}>
                   <StockPile count={view.stockCount} />
                   {isHighlighted("stock") && highlight?.label && (
                     <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
@@ -321,7 +319,7 @@ export function GameTable() {
                 </div>
               )}
               {session.enabledZones.play && (
-                <div className={`rounded-lg transition-shadow duration-300 ${isHighlighted("play") ? HIGHLIGHT_CLASSES + " p-1" : ""}`}>
+                <div className={`rounded-lg p-1 transition-shadow duration-300 ${isHighlighted("play") ? HIGHLIGHT_CLASSES : ""}`}>
                   <PlayArea
                     cards={view.play}
                     layout={
@@ -337,7 +335,7 @@ export function GameTable() {
                 </div>
               )}
               {session.enabledZones.discard && (
-                <div className={`rounded-lg transition-shadow duration-300 ${isHighlighted("discard") ? HIGHLIGHT_CLASSES + " p-1" : ""}`}>
+                <div className={`rounded-lg p-1 transition-shadow duration-300 ${isHighlighted("discard") ? HIGHLIGHT_CLASSES : ""}`}>
                   <DiscardPile top={view.discardTop} count={view.discardCount} />
                   {isHighlighted("discard") && highlight?.label && (
                     <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
@@ -390,7 +388,7 @@ export function GameTable() {
           </div>
 
           {/* Actions — driven entirely by agent-defined legalActions */}
-          <div className={`mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-lg transition-shadow duration-300 ${isHighlighted("actions") ? HIGHLIGHT_CLASSES + " p-2" : ""}`}>
+          <div className={`mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-lg p-2 transition-shadow duration-300 ${isHighlighted("actions") ? HIGHLIGHT_CLASSES : ""}`}>
             {isHighlighted("actions") && highlight?.label && (
               <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">{highlight.label}</span>
             )}
@@ -405,11 +403,10 @@ export function GameTable() {
                   create_game or call set_legal_actions.
                 </p>
               ) : (
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence initial={false}>
                   {view.legalActions.map((action) => (
                     <motion.div
                       key={action.id}
-                      layout
                       initial={{ opacity: 0, y: 10, scale: 0.92 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.92 }}

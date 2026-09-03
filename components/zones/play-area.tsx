@@ -16,7 +16,7 @@ export function PlayArea({
   if (layout === "stack") {
     return (
       <div className="flex min-h-[9rem] min-w-[14rem] flex-col items-center gap-1">
-        <AnimatePresence mode="popLayout">
+      <AnimatePresence initial={false}>
           {cards.length === 0 ? (
             <motion.div
               key="empty"
@@ -30,15 +30,13 @@ export function PlayArea({
           ) : (
             <motion.div
               key="stack"
-              layout
               className="relative h-[9.75rem] w-[8.5rem]"
               aria-label={`Play pile with ${cards.length} cards`}
             >
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence initial={false}>
                 {stackCards.map((card, index) => (
                   <motion.div
                     key={card.id}
-                    layout
                     initial={{ opacity: 0, y: -18, scale: 0.9 }}
                     animate={{
                       opacity: 1,
@@ -82,8 +80,8 @@ export function PlayArea({
 
   return (
     <div className="flex min-h-[9rem] min-w-[14rem] flex-col items-center gap-1">
-      <motion.div layout className="flex flex-wrap items-center justify-center gap-2">
-        <AnimatePresence mode="popLayout">
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <AnimatePresence initial={false}>
           {cards.length === 0 ? (
             <motion.div
               key="empty"
@@ -106,7 +104,7 @@ export function PlayArea({
             ))
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
       <span className="text-[10px] uppercase tracking-wide text-emerald-400/80">
         Community / Tableau
       </span>

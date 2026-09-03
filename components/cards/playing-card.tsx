@@ -64,7 +64,6 @@ export function PlayingCard({
       type="button"
       disabled={!onClick}
       onClick={onClick}
-      layout
       initial={noEnter ? false : { opacity: 0, y: 14, scale: 0.86, rotateZ: -4 }}
       animate={{
         opacity: muted ? 0.5 : 1,

@@ -19,11 +19,8 @@ export function Hand({
 }) {
   return (
     <div className="flex w-full flex-col items-center gap-2">
-      <motion.div
-        layout
-        className="flex flex-wrap items-end justify-center gap-1.5"
-      >
-        <AnimatePresence mode="popLayout">
+      <div className="flex flex-wrap items-end justify-center gap-1.5">
+        <AnimatePresence initial={false}>
           {cards.length === 0 ? (
             <motion.p
               key="empty"
@@ -51,7 +48,7 @@ export function Hand({
             ))
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
       <span className="text-[10px] uppercase tracking-wide text-emerald-400/80">
         {label}
       </span>

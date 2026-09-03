@@ -13,7 +13,7 @@ export function DiscardPile({
 }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <AnimatePresence mode="popLayout" initial={false}>
+      <AnimatePresence initial={false}>
         {top ? (
           <motion.div
             key={top.id}
