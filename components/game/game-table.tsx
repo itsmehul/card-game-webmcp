@@ -136,7 +136,8 @@ export function GameTable() {
 
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-900/50 px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-base font-semibold tracking-wide text-emerald-100">
+          <h1 className="inline-flex items-center gap-1.5 text-base font-semibold tracking-wide text-emerald-100">
+            <MaterialIcon name="casino" size="sm" className="text-amber-400/90" />
             Card Table
           </h1>
           {session ? (
@@ -146,7 +147,9 @@ export function GameTable() {
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Badge variant="secondary">{session.name}</Badge>
+                <Badge variant="secondary" icon="playing_cards">
+                  {session.name}
+                </Badge>
               </motion.span>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.span
@@ -156,7 +159,9 @@ export function GameTable() {
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ type: "spring", stiffness: 300, damping: 22 }}
                 >
-                  <Badge variant="outline">{session.phase}</Badge>
+                  <Badge variant="outline" icon="flag">
+                    {session.phase}
+                  </Badge>
                 </motion.span>
               </AnimatePresence>
               {view?.turnPlayerName && (
@@ -166,12 +171,19 @@ export function GameTable() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ type: "spring", stiffness: 300, damping: 24 }}
                 >
-                  <Badge variant="muted">Turn · {view.turnPlayerName}</Badge>
+                  <Badge
+                    variant="muted"
+                    icon={view.turnPlayerId === "human" ? "person" : "smart_toy"}
+                  >
+                    Turn · {view.turnPlayerName}
+                  </Badge>
                 </motion.span>
               )}
             </>
           ) : (
-            <Badge variant="muted">No game</Badge>
+            <Badge variant="muted" icon="hourglass_empty">
+              No game
+            </Badge>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -180,8 +192,8 @@ export function GameTable() {
               value={session.mode}
               onValueChange={handleModeChange}
               options={[
-                { value: "practice", label: "Practice" },
-                { value: "tutorial", label: "Tutorial" },
+                { value: "practice", label: "Practice", icon: "sports_esports" },
+                { value: "tutorial", label: "Tutorial", icon: "school" },
               ]}
             />
           )}
@@ -230,10 +242,13 @@ export function GameTable() {
                     </motion.span>
                   )}
                   <div className="flex items-center gap-2 text-sm">
+                    <MaterialIcon
+                      name="smart_toy"
+                      size="xs"
+                      className="text-emerald-400/80"
+                    />
                     <span className="font-medium text-emerald-100">{bot.name}</span>
-                    {bot.chips !== null && (
-                      <span className="tabular-nums text-amber-300/90">{bot.chips}</span>
-                    )}
+                    {bot.chips !== null && <ChipAmount amount={bot.chips} />}
                     {session.mode === "tutorial" && bot.handCount > 0 && (
                       <button
                         type="button"
@@ -241,11 +256,10 @@ export function GameTable() {
                         className="inline-flex items-center justify-center rounded p-0.5 text-emerald-400/70 transition-colors hover:text-emerald-200"
                         aria-label={botCardsRevealed ? "Hide bot cards" : "Show bot cards"}
                       >
-                        {botCardsRevealed ? (
-                          <EyeOff className="size-3.5" />
-                        ) : (
-                          <Eye className="size-3.5" />
-                        )}
+                        <MaterialIcon
+                          name={botCardsRevealed ? "visibility_off" : "visibility"}
+                          size="xs"
+                        />
                       </button>
                     )}
                   </div>
@@ -305,12 +319,23 @@ export function GameTable() {
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-emerald-900/40 bg-[radial-gradient(ellipse_at_center,#14532d_0%,#052e16_70%)] px-4 py-4 shadow-inner">
             {view.chips && (
               <div
-                className={`rounded px-2 py-0.5 text-sm tabular-nums text-amber-200/90 transition-shadow duration-300 ${isHighlighted("pot") ? HIGHLIGHT_CLASSES : ""}`}
+                className={`inline-flex items-center gap-2 rounded px-2 py-0.5 text-sm tabular-nums text-amber-200/90 transition-shadow duration-300 ${isHighlighted("pot") ? HIGHLIGHT_CLASSES : ""}`}
               >
-                Pot · {view.chips.pot}
-                {view.chips.currentBet > 0
-                  ? ` · Bet ${view.chips.currentBet}`
-                  : ""}
+                <span className="inline-flex items-center gap-1">
+                  <MaterialIcon
+                    name="poker_chip"
+                    size="sm"
+                    filled
+                    className="text-amber-400"
+                  />
+                  Pot · {view.chips.pot}
+                </span>
+                {view.chips.currentBet > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-amber-200/70">
+                    <MaterialIcon name="north" size="xs" />
+                    Bet {view.chips.currentBet}
+                  </span>
+                )}
                 {isHighlighted("pot") && highlight?.label && (
                   <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">
                     {highlight.label}
@@ -372,11 +397,20 @@ export function GameTable() {
               </span>
             )}
             <div className="flex items-center gap-2 text-sm">
+              <MaterialIcon
+                name="person"
+                size="xs"
+                className="text-emerald-400/80"
+              />
               <span className="font-medium text-emerald-100">You</span>
               {human?.chips !== null && human?.chips !== undefined && (
-                <span className="tabular-nums text-amber-300/90">{human.chips} chips</span>
+                <ChipAmount amount={human.chips} />
               )}
-              {human?.folded && <Badge variant="muted">Folded</Badge>}
+              {human?.folded && (
+                <Badge variant="muted" icon="block">
+                  Folded
+                </Badge>
+              )}
             </div>
             {session.enabledZones.hand && human && (
               <Hand
@@ -458,13 +492,15 @@ export function GameTable() {
                         }
                         onClick={() => handleLegalAction(action)}
                       >
+                        <MaterialIcon name={actionIcon(action)} size="xs" />
                         {action.label}
                       </Button>
                     </motion.div>
                   ))}
                 </AnimatePresence>
               ) : !isHumanTurn ? (
-                <p className="text-sm text-emerald-400/80">
+                <p className="inline-flex items-center gap-1 text-sm text-emerald-400/80">
+                  <MaterialIcon name="hourglass" size="xs" />
                   Waiting for {view.turnPlayerName ?? "another player"}…
                 </p>
               ) : (
@@ -477,6 +513,7 @@ export function GameTable() {
                 variant="outline"
                 onClick={() => runSafe(() => gameStore.clear())}
               >
+                <MaterialIcon name="stop_circle" size="xs" />
                 End game
               </Button>
             </div>
