@@ -16,7 +16,7 @@ export function PlayArea({
   if (layout === "stack") {
     return (
       <div className="flex min-h-[9rem] min-w-[14rem] flex-col items-center gap-1">
-      <AnimatePresence initial={false}>
+        <AnimatePresence initial={false}>
           {cards.length === 0 ? (
             <motion.div
               key="empty"
@@ -48,7 +48,12 @@ export function PlayArea({
                     }}
                     exit={{ opacity: 0, scale: 0.9, y: -12 }}
                     transition={{ type: "spring", stiffness: 240, damping: 22 }}
-                    style={{ zIndex: index, left: "50%", top: 0, position: "absolute" }}
+                    style={{
+                      zIndex: index,
+                      left: "50%",
+                      top: 0,
+                      position: "absolute",
+                    }}
                   >
                     <PlayingCard
                       id={card.id}

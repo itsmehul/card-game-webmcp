@@ -74,7 +74,7 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
             <motion.article
               key={entry.id}
               variants={item}
-              whileHover={{ y: -6, scale: 1.02 }}
+              whileHover={{ y: -6 }}
               transition={{ type: "spring", stiffness: 300, damping: 22 }}
               className="group flex flex-col gap-4 rounded-xl border border-emerald-800/70 bg-linear-to-br from-emerald-950/80 to-emerald-950/30 p-5 shadow-[inset_0_1px_0_rgba(167,243,208,0.06)] transition hover:border-amber-500/40 hover:shadow-[0_0_0_1px_rgba(245,158,11,0.15)]"
             >

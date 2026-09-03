@@ -1,8 +1,14 @@
 @import "tailwindcss";
+@import "material-symbols/outlined.css";
 
 :root {
   --background: #0b1f14;
   --foreground: #ecfdf5;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  user-select: none;
 }
 
 @theme inline {

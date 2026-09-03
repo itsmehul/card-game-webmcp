@@ -18,7 +18,7 @@ export function Hand({
   label?: string;
 }) {
   return (
-    <div className="flex w-full flex-col items-center gap-2">
+    <div className="flex w-full flex-col items-center gap-1.5">
       <div className="flex flex-wrap items-end justify-center gap-1.5">
         <AnimatePresence initial={false}>
           {cards.length === 0 ? (
@@ -27,7 +27,7 @@ export function Hand({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-xs text-emerald-600"
+              className="py-2 text-xs text-emerald-600"
             >
               No cards
             </motion.p>
