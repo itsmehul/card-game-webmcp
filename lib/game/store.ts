@@ -77,6 +77,34 @@ type PendingAwait = {
 };
 let pendingAwait: PendingAwait | null = null;
 
+/**
+ * Buffer for the most recent human legal-action that arrived with NO
+ * pending await. In the tutorial loop the agent runs highlight + narrate
+ * (each a WebMCP round-trip) BEFORE calling await_user_action, but the
+ * next button is armed the instant the previous action is applied (via
+ * nextActions). An engaged human will often click that next button during
+ * that window — before any await is pending — and the click signal would be
+ * lost. Buffering it lets the subsequent await_user_action resolve with the
+ * click instead of hanging until the host times out. Only the most recent
+ * click is kept; a new game clears it.
+ */
+let bufferedHumanAction: AwaitUserActionResult | null = null;
+
+function buildActionResult(
+  action: LegalAction,
+  opts: { selectedCardIds?: string[]; amount?: number } | undefined,
+  expectActionId: string | undefined,
+): AwaitUserActionResult {
+  return {
+    timedOut: false,
+    actionId: action.id,
+    label: action.label,
+    matched: expectActionId ? action.id === expectActionId : true,
+    selectedCardIds: opts?.selectedCardIds ?? [],
+    amount: opts?.amount,
+  };
+}
+
 function clearAwaitTimer(p: PendingAwait) {
   if (p.timer) clearTimeout(p.timer);
 }
@@ -87,6 +115,7 @@ function cancelPendingAwait(reason: string) {
   clearAwaitTimer(pendingAwait);
   const p = pendingAwait;
   pendingAwait = null;
+  bufferedHumanAction = null;
   p.reject(new Error(reason));
 }
 
@@ -126,6 +155,7 @@ export const gameStore = {
       ? createFromPreset(options.preset!, options)
       : createSession(options);
     cancelPendingAwait("A new game started while awaiting a user action.");
+    bufferedHumanAction = null;
     setSession(next);
     return next;
   },
@@ -136,11 +166,13 @@ export const gameStore = {
   ) {
     const next = startPresetSession(id, mode, botCount);
     cancelPendingAwait("A new game started while awaiting a user action.");
+    bufferedHumanAction = null;
     setSession(next);
     return next;
   },
   clear() {
     cancelPendingAwait("Game ended while awaiting a user action.");
+    bufferedHumanAction = null;
     setSession(null);
   },
   shuffle() {
@@ -270,20 +302,17 @@ export const gameStore = {
     setSession(after.highlight ? { ...after, highlight: null } : after);
     // Settle a pending tutorial await, if any. The await resolves with the
     // *actual* action performed; matched is false when the agent expected a
-    // different action id so it can course-correct.
+    // different action id so it can course-correct. If NO await is pending
+    // (the human clicked before the agent called await_user_action — the
+    // common race in the tutorial loop), buffer the click so the next
+    // await_user_action resolves with it instead of hanging.
     if (pendingAwait) {
       clearAwaitTimer(pendingAwait);
       const p = pendingAwait;
       pendingAwait = null;
-      const matched = p.expectActionId ? action.id === p.expectActionId : true;
-      p.resolve({
-        timedOut: false,
-        actionId: action.id,
-        label: action.label,
-        matched,
-        selectedCardIds: opts?.selectedCardIds ?? [],
-        amount: opts?.amount,
-      });
+      p.resolve(buildActionResult(action, opts, p.expectActionId));
+    } else {
+      bufferedHumanAction = buildActionResult(action, opts, undefined);
     }
     return session!;
   },
@@ -309,6 +338,24 @@ export const gameStore = {
       const stale = pendingAwait;
       pendingAwait = null;
       stale.resolve({ timedOut: true });
+    }
+    // If the human already clicked before this await was set up (the tutorial
+    // race where nextActions armed the button during the agent's
+    // highlight/narrate round-trips), consume that buffered click now.
+    if (bufferedHumanAction) {
+      const buffered = bufferedHumanAction;
+      bufferedHumanAction = null;
+      // Do NOT clear session.highlight here. Any highlight present now was
+      // set by the agent AFTER the buffered click (highlight → narrate →
+      // await_user_action), so clearing it would wipe the recommendation
+      // before the student ever sees it — the dominant tutorial race. A
+      // truly stale highlight is already cleared by applyHumanLegalAction
+      // at click time, and the agent's next step replaces it via
+      // setHighlight, so leaving it is safe.
+      const matched = opts.expectActionId
+        ? buffered.actionId === opts.expectActionId
+        : true;
+      return Promise.resolve({ ...buffered, matched });
     }
     return new Promise<AwaitUserActionResult>((resolve, reject) => {
       const entry: PendingAwait = {
