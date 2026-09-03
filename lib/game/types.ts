@@ -344,6 +344,8 @@ export interface AwaitUserActionOptions {
   expectActionId?: string;
   /** Max wait in ms. On expiry resolves with { timedOut: true }. */
   timeoutMs?: number;
+  /** When aborted (host cancelled the tool call), resolve with { timedOut: true }. */
+  signal?: AbortSignal;
 }
 
 export interface HumanGameView {

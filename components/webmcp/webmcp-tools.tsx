@@ -1283,14 +1283,20 @@ function TutorialAwaitTool() {
       },
     } as const,
     annotations: { readOnlyHint: true, openWorldHint: false },
-    execute: async (args) => {
+    execute: async (args, extras) => {
+      const signal = extras?.signal;
       try {
         const result = await gameStore.awaitUserAction({
           expectActionId: args?.expectActionId
             ? String(args.expectActionId)
             : undefined,
           timeoutMs: args?.timeoutMs ? Number(args.timeoutMs) : undefined,
+          signal,
         });
+        if (signal?.aborted || result.timedOut) {
+          return ok(signal?.aborted ? { timedOut: true } : result);
+        }
+        gameStore.ackUserAction();
         return ok(result);
       } catch (e) {
         return fail(

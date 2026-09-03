@@ -72,23 +72,29 @@ const listeners = new Set<Listener>();
 type PendingAwait = {
   expectActionId?: string;
   timer?: ReturnType<typeof setTimeout>;
+  abortSignal?: AbortSignal;
+  abortListener?: () => void;
   resolve: (result: AwaitUserActionResult) => void;
   reject: (err: Error) => void;
 };
 let pendingAwait: PendingAwait | null = null;
 
 /**
- * Buffer for the most recent human legal-action that arrived with NO
- * pending await. In the tutorial loop the agent runs highlight + narrate
- * (each a WebMCP round-trip) BEFORE calling await_user_action, but the
- * next button is armed the instant the previous action is applied (via
- * nextActions). An engaged human will often click that next button during
- * that window — before any await is pending — and the click signal would be
- * lost. Buffering it lets the subsequent await_user_action resolve with the
- * click instead of hanging until the host times out. Only the most recent
- * click is kept; a new game clears it.
+ * Last human legal-action, kept until the tool consumer acks it.
+ *
+ * Two races lose the click if we only resolve a live `pendingAwait`:
+ * 1. nextActions arm the next button while the agent is still doing
+ *    highlight / narrate, so the click arrives with no await pending.
+ * 2. The host aborts `await_user_action` (new user message, tool timeout)
+ *    after the click already resolved that call — the dead consumer never
+ *    sees it, and the next await hangs on Bet/Deal forever.
+ *
+ * `humanActionSeq > ackedSeq` means the click has not been delivered to a
+ * consumer that finished successfully. A new game clears the log.
  */
-let bufferedHumanAction: AwaitUserActionResult | null = null;
+let lastHumanAction: AwaitUserActionResult | null = null;
+let humanActionSeq = 0;
+let ackedSeq = 0;
 
 function buildActionResult(
   action: LegalAction,
@@ -107,6 +113,25 @@ function buildActionResult(
 
 function clearAwaitTimer(p: PendingAwait) {
   if (p.timer) clearTimeout(p.timer);
+  if (p.abortSignal && p.abortListener) {
+    p.abortSignal.removeEventListener("abort", p.abortListener);
+  }
+}
+
+function resetHumanActionLog() {
+  lastHumanAction = null;
+  humanActionSeq = 0;
+  ackedSeq = 0;
+}
+
+function unackedClick(
+  expectActionId: string | undefined,
+): AwaitUserActionResult | null {
+  if (humanActionSeq <= ackedSeq || !lastHumanAction) return null;
+  const matched = expectActionId
+    ? lastHumanAction.actionId === expectActionId
+    : true;
+  return { ...lastHumanAction, matched };
 }
 
 /** Reject an in-flight await because the session was replaced or cleared. */
@@ -115,7 +140,6 @@ function cancelPendingAwait(reason: string) {
   clearAwaitTimer(pendingAwait);
   const p = pendingAwait;
   pendingAwait = null;
-  bufferedHumanAction = null;
   p.reject(new Error(reason));
 }
 
@@ -155,7 +179,7 @@ export const gameStore = {
       ? createFromPreset(options.preset!, options)
       : createSession(options);
     cancelPendingAwait("A new game started while awaiting a user action.");
-    bufferedHumanAction = null;
+    resetHumanActionLog();
     setSession(next);
     return next;
   },
@@ -166,13 +190,13 @@ export const gameStore = {
   ) {
     const next = startPresetSession(id, mode, botCount);
     cancelPendingAwait("A new game started while awaiting a user action.");
-    bufferedHumanAction = null;
+    resetHumanActionLog();
     setSession(next);
     return next;
   },
   clear() {
     cancelPendingAwait("Game ended while awaiting a user action.");
-    bufferedHumanAction = null;
+    resetHumanActionLog();
     setSession(null);
   },
   shuffle() {
@@ -300,19 +324,17 @@ export const gameStore = {
     // label (e.g. "Click here to deal") doesn't bleed into the next phase.
     const after = applyHumanLegalAction(requireSession(), action, opts);
     setSession(after.highlight ? { ...after, highlight: null } : after);
+    lastHumanAction = buildActionResult(action, opts, undefined);
+    humanActionSeq += 1;
     // Settle a pending tutorial await, if any. The await resolves with the
     // *actual* action performed; matched is false when the agent expected a
-    // different action id so it can course-correct. If NO await is pending
-    // (the human clicked before the agent called await_user_action — the
-    // common race in the tutorial loop), buffer the click so the next
-    // await_user_action resolves with it instead of hanging.
+    // different action id so it can course-correct. The click stays unacked
+    // until ackUserAction() so an aborted tool call can replay it.
     if (pendingAwait) {
       clearAwaitTimer(pendingAwait);
       const p = pendingAwait;
       pendingAwait = null;
       p.resolve(buildActionResult(action, opts, p.expectActionId));
-    } else {
-      bufferedHumanAction = buildActionResult(action, opts, undefined);
     }
     return session!;
   },
@@ -339,40 +361,47 @@ export const gameStore = {
       pendingAwait = null;
       stale.resolve({ timedOut: true });
     }
-    // If the human already clicked before this await was set up (the tutorial
-    // race where nextActions armed the button during the agent's
-    // highlight/narrate round-trips), consume that buffered click now.
-    if (bufferedHumanAction) {
-      const buffered = bufferedHumanAction;
-      bufferedHumanAction = null;
-      // Do NOT clear session.highlight here. Any highlight present now was
-      // set by the agent AFTER the buffered click (highlight → narrate →
-      // await_user_action), so clearing it would wipe the recommendation
-      // before the student ever sees it — the dominant tutorial race. A
-      // truly stale highlight is already cleared by applyHumanLegalAction
-      // at click time, and the agent's next step replaces it via
-      // setHighlight, so leaving it is safe.
-      const matched = opts.expectActionId
-        ? buffered.actionId === opts.expectActionId
-        : true;
-      return Promise.resolve({ ...buffered, matched });
-    }
+    // Unacked click: either the nextActions gap (click before await) or a
+    // previous await that resolved then got aborted before ackUserAction.
+    // Do NOT clear session.highlight here — any highlight present now was
+    // set by the agent AFTER that click.
+    const replayed = unackedClick(opts.expectActionId);
+    if (replayed) return Promise.resolve(replayed);
+
     return new Promise<AwaitUserActionResult>((resolve, reject) => {
       const entry: PendingAwait = {
         expectActionId: opts.expectActionId,
         resolve,
         reject,
       };
+      const settleTimeout = () => {
+        if (pendingAwait !== entry) return;
+        clearAwaitTimer(entry);
+        pendingAwait = null;
+        resolve({ timedOut: true });
+      };
+      if (opts.signal) {
+        if (opts.signal.aborted) {
+          resolve({ timedOut: true });
+          return;
+        }
+        entry.abortSignal = opts.signal;
+        entry.abortListener = settleTimeout;
+        opts.signal.addEventListener("abort", settleTimeout);
+      }
       if (opts.timeoutMs && opts.timeoutMs > 0) {
-        entry.timer = setTimeout(() => {
-          if (pendingAwait === entry) {
-            pendingAwait = null;
-            resolve({ timedOut: true });
-          }
-        }, opts.timeoutMs);
+        entry.timer = setTimeout(settleTimeout, opts.timeoutMs);
       }
       pendingAwait = entry;
     });
+  },
+  /**
+   * Mark the last delivered click as consumed. Call only after the
+   * await_user_action tool has successfully returned to a live agent turn.
+   * Skip this when the host aborted the call so the next await can replay.
+   */
+  ackUserAction() {
+    ackedSeq = humanActionSeq;
   },
   setMode(mode: SessionMode) {
     setSession(setMode(requireSession(), mode));
