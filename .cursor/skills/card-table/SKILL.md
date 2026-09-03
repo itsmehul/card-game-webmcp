@@ -14,6 +14,17 @@ Tool schemas stay on the MCP server. This file is the playbook: **which tool, wh
 
 Seats: `human`, `bot_1`… Zones: `stock`, `hand`, `play`, `discard`, `capture`.
 
+## Hard ban: do not drive the website
+
+This table is taught over **WebMCP**, not by operating the page.
+
+- **Forbidden:** browser automation, Playwright/Puppeteer, CDP clicks, screenshot-and-click, DOM `click()`, Cursor/Claude browser tools, or any proxy that presses Play / Tutorial / Bet / Deal / Hit / Stand for the student.
+- **Forbidden:** starting a game by clicking catalog cards on the page.
+- **Required:** `create_game` (with `mode: "tutorial"` when teaching) + `coach` / `await_user_action` so the **human** presses every control.
+- Saying "I'll click Stand for you" is a failure. Cue the button with `coach({ expectActionId })` and wait.
+
+If you only have a browser tool and no WebMCP relay tools, stop and tell the user to open the Card Table page with WebMCP connected — do not fall back to clicking the UI.
+
 ## Discover tools
 
 Host relays may expose **bare** names (`create_game`) or **suffixed** names (`create_game_8a66`).
@@ -25,7 +36,7 @@ Host relays may expose **bare** names (`create_game`) or **suffixed** names (`cr
 ## Start
 
 1. `list_presets` **only** before inventing a custom game. If the user already named a catalog preset (e.g. blackjack), skip it — `create_game`'s `preset` enum is enough.
-2. Catalog → `create_game` with `preset` (name optional). Custom → omit `preset`; pass `name` + XState-compatible `machine` JSON (+ zones / instructions).
+2. Catalog → `create_game` with `preset` (name optional) and `mode: "tutorial"` when teaching. Custom → omit `preset`; pass `name` + XState-compatible `machine` JSON (+ zones / instructions).
 3. **The machine owns progression, bots, and rewards.** The human clicks on-screen controls; the FSM deals, runs bots, and settles. There are no agent deal/bet/award tools.
 4. **Your job is to explain.** Prefer `coach` in tutorial. Otherwise use `narrate` / `highlight` / `await_user_action`. Never move the human seat.
 
@@ -64,7 +75,8 @@ Write an XState `machine` (see `reference.md`): states, `meta.controls` (human b
 
 ## Rules
 
-- Never perform the human's actions.
+- Never perform the human's actions — not via WebMCP, not via browser tools, not "for them."
+- Never click catalog Play/Tutorial, Bet, Deal, Hit, Stand, or any other table control.
 - Do not recreate a preset that `list_presets` / the `create_game` enum already lists.
 - Keep `narrate` educational and short; do not dump JSON state.
 - Do not reason about award amounts or next phases for catalog games — the FSM already did.
