@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { MaterialIcon } from "@/components/ui/material-icon";
 import {
   getPreset,
   listPresets,
@@ -40,7 +41,8 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
         transition={{ duration: 0.4 }}
         className="max-w-2xl space-y-3"
       >
-        <p className="text-xs font-medium uppercase tracking-[0.2em] text-amber-400/80">
+        <p className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.2em] text-amber-400/80">
+          <MaterialIcon name="casino" size="xs" filled className="text-amber-400" />
           Choose a table
         </p>
         <h2 className="font-serif text-3xl tracking-tight text-emerald-50 sm:text-4xl">
@@ -80,14 +82,20 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1.5">
-                  <h3 className="text-lg font-semibold text-emerald-50">
+                  <h3 className="inline-flex items-center gap-1.5 text-lg font-semibold text-emerald-50">
+                    <MaterialIcon
+                      name="playing_cards"
+                      size="sm"
+                      className="text-amber-400/80"
+                    />
                     {entry.name}
                   </h3>
                   <p className="text-sm leading-relaxed text-emerald-300/70">
                     {entry.summary}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full border border-emerald-800/80 bg-emerald-950/60 px-2.5 py-1 text-xs text-emerald-400/90">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-800/80 bg-emerald-950/60 px-2.5 py-1 text-xs text-emerald-400/90">
+                  <MaterialIcon name="groups" size="xs" />
                   You + {bots} bot{bots === 1 ? "" : "s"}
                 </span>
               </div>
@@ -96,6 +104,7 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
                   size="sm"
                   onClick={() => onStart(entry.id, "practice")}
                 >
+                  <MaterialIcon name="play_arrow" size="xs" filled />
                   Play
                 </Button>
                 <Button
@@ -103,6 +112,7 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
                   variant="outline"
                   onClick={() => onStart(entry.id, "tutorial")}
                 >
+                  <MaterialIcon name="school" size="xs" />
                   Tutorial
                 </Button>
               </div>
@@ -117,9 +127,16 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
         transition={{ delay: 0.3, duration: 0.4 }}
         className="rounded-xl border border-dashed border-emerald-700/40 bg-emerald-950/20 px-5 py-4"
       >
-        <p className="max-w-2xl text-sm leading-relaxed text-emerald-100/70">
-          <span className="font-semibold text-emerald-200">Not on the list?</span>{" "}
-          Ask an agent to invent a custom game — it has the playbook via WebMCP.
+        <p className="inline-flex max-w-2xl items-start gap-2 text-sm leading-relaxed text-emerald-100/70">
+          <MaterialIcon
+            name="wand_stars"
+            size="sm"
+            className="mt-0.5 shrink-0 text-amber-400/80"
+          />
+          <span>
+            <span className="font-semibold text-emerald-200">Not on the list?</span>{" "}
+            Ask an agent to invent a custom game — it has the playbook via WebMCP.
+          </span>
         </p>
       </motion.aside>
     </div>

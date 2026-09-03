@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { MaterialIcon } from "@/components/ui/material-icon";
 import { PlayingCard } from "@/components/cards/playing-card";
 import type { CardPublicView } from "@/lib/game";
 
@@ -44,7 +45,8 @@ export function CapturePile({
           </motion.div>
         )}
       </AnimatePresence>
-      <span className="text-[10px] uppercase tracking-wide text-emerald-400/80">
+      <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wide text-emerald-400/80">
+        <MaterialIcon name="back_hand" size="xs" />
         {label} · {cards.length}
       </span>
     </div>

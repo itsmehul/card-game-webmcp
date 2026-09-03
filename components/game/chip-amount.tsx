@@ -3,11 +3,9 @@ import { cn } from "@/lib/utils";
 
 export function ChipAmount({
   amount,
-  label,
   className,
 }: {
   amount: number;
-  label?: string;
   className?: string;
 }) {
   return (
@@ -16,14 +14,9 @@ export function ChipAmount({
         "inline-flex items-center gap-0.5 tabular-nums text-amber-300/90",
         className,
       )}
+      title={`${amount} chips`}
     >
-      <MaterialIcon
-        name="poker_chip"
-        size="xs"
-        filled
-        className="text-amber-400"
-        label={label ?? "Chips"}
-      />
+      <MaterialIcon name="poker_chip" size="xs" filled className="text-amber-400" />
       <span>{amount}</span>
     </span>
   );

@@ -43,7 +43,11 @@ export function WebMCPStatus() {
 
   return (
     <div className="flex items-center gap-2">
-      <Badge variant={supported ? "default" : "muted"}>
+      <Badge
+        variant={supported ? "default" : "muted"}
+        icon={supported ? "hub" : "cloud_off"}
+        iconFilled={supported}
+      >
         {supported ? `WebMCP · ${toolCount} tools` : "WebMCP unavailable"}
       </Badge>
       <Script
