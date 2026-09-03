@@ -263,7 +263,11 @@ export const gameStore = {
     action: LegalAction,
     opts?: { selectedCardIds?: string[]; amount?: number },
   ) {
-    setSession(applyHumanLegalAction(requireSession(), action, opts));
+    // The highlight is a transient guide for the next click; once the human
+    // performs an action it has served its purpose, so clear it so a stale
+    // label (e.g. "Click here to deal") doesn't bleed into the next phase.
+    const after = applyHumanLegalAction(requireSession(), action, opts);
+    setSession(after.highlight ? { ...after, highlight: null } : after);
     // Settle a pending tutorial await, if any. The await resolves with the
     // *actual* action performed; matched is false when the agent expected a
     // different action id so it can course-correct.
@@ -285,8 +289,12 @@ export const gameStore = {
   },
   /**
    * Block until the human clicks a legalAction button on the table, then
-   * resolve with what they did. Tutorial-only. Only one await may be pending
-   * at a time; a second call while one is pending rejects immediately.
+   * resolve with what they did. Tutorial-only. At most one await is pending
+   * at a time; the agent's turn blocks on the tool, so a second call can only
+   * arrive if the previous one was abandoned (the MCP client aborted the tool
+   * call before it resolved). In that case the stale await is superseded
+   * benignly — resolved with { timedOut: true } — so its dead consumer ignores
+   * the result and no unhandled rejection fires, and the new await proceeds.
    * Resolves with { timedOut: true } after timeoutMs. Rejects if the game is
    * cleared or replaced while waiting.
    */
@@ -294,11 +302,13 @@ export const gameStore = {
     opts: AwaitUserActionOptions = {},
   ): Promise<AwaitUserActionResult> {
     if (pendingAwait) {
-      return Promise.reject(
-        new Error(
-          "Another await_user_action is already in progress. Wait for it to resolve before calling again.",
-        ),
-      );
+      // A previous await was abandoned by its caller (the MCP client aborted
+      // the tool call). Supersede it so the agent can retry cleanly instead of
+      // being permanently locked out of await_user_action.
+      clearAwaitTimer(pendingAwait);
+      const stale = pendingAwait;
+      pendingAwait = null;
+      stale.resolve({ timedOut: true });
     }
     return new Promise<AwaitUserActionResult>((resolve, reject) => {
       const entry: PendingAwait = {
