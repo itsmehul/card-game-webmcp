@@ -26,8 +26,14 @@ Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking u
 
 1. `list_presets` before inventing a game.
 2. Catalog → `create_game` with `preset` (name optional; the preset supplies it). Custom → omit `preset`; pass `name`, zones, `legalActions`, `instructions`.
-3. Practice: human clicks buttons; never `apply_move` for `human`. Tutorial: agent may move any seat.
-   Tutorial step recipe: `highlight` the target + `narrate` what to do + `set_legal_actions` for the buttons, then `await_user_action({ expectActionId })` to block until the human clicks. The result carries `matched:false` if they clicked a different button — re-narrate and re-await. `await_user_action` rejects if the game ends while waiting.
+3. **CRITICAL RULE**: The agent MUST NEVER execute commands or actions for the human user (`human`) in any mode (tutorial or practice). The agent must ONLY:
+   a. **Highlight** the recommended command (`highlight`).
+   b. Provide educational **insights** and strategy explanation (`narrate`).
+   c. Wait for the human to click their on-screen button (`await_user_action`).
+   d. Automatically run **bot actions** for bot seats (`apply_move` / `draw` / `chip_action` / `reveal` for `bot_1`...).
+   e. **Repeat**.
+   
+   **Tutorial step recipe**: `highlight` the target + `narrate` insights + `set_legal_actions` for the human buttons, then `await_user_action({ expectActionId })` to block until the human clicks. Never call `apply_move` or primitive actions for the human seat.
 4. Mutating tools return compact agent state (in-play cards only, `stockCount`, last 3 narration lines). Use that result for the next decision — do **not** call `get_game_state` again unless the previous payload was lost.
 
 ## Router

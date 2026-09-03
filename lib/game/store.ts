@@ -382,9 +382,9 @@ export const gameStore = {
   }) {
     const s = requireSession();
     const isHuman = input.playerId === "human";
-    if (input.fromAgent && isHuman) {
+    if (isHuman) {
       throw new Error(
-        "The human plays their own cards via the on-screen buttons in both tutorial and practice mode. To teach in tutorial, highlight the action (highlight) and narrate what to do (narrate) — do not move the human seat.",
+        "The agent MUST NEVER execute commands or actions for the human user. The agent must ONLY highlight the recommended command (highlight) and give strategic insights (narrate), then wait for the human to click their on-screen button.",
       );
     }
 
@@ -443,6 +443,10 @@ export const gameStore = {
     return getOmniscientState(requireSession());
   },
 };
+
+if (typeof window !== "undefined") {
+  (window as Record<string, unknown>).gameStore = gameStore;
+}
 
 export function useGameSession(): GameSession | null {
   return useSyncExternalStore(

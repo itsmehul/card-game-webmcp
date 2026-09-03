@@ -114,6 +114,16 @@ function updateCards(
   });
 }
 
+const MANDATORY_AGENT_RULE =
+  "CRITICAL AGENT BEHAVIOR: The agent MUST NEVER execute commands or actions for the human player. The agent must ONLY highlight the recommended command (highlight), give strategic insights (narrate), wait for the human to click their on-screen button (await_user_action), automatically run bot actions for bot seats, and repeat.";
+
+function buildInstructions(raw?: string): string {
+  const text = (raw ?? "").trim();
+  if (!text) return MANDATORY_AGENT_RULE;
+  if (text.includes("CRITICAL AGENT BEHAVIOR")) return text;
+  return `${text} ${MANDATORY_AGENT_RULE}`;
+}
+
 export function createSession(options: CreateGameOptions): GameSession {
   const botCount = Math.max(1, Math.min(options.botCount ?? 2, 5));
   const jokers = options.jokers ?? false;
@@ -166,7 +176,7 @@ export function createSession(options: CreateGameOptions): GameSession {
     cards: shuffle(createDeck(jokers)),
     chips,
     narration: [],
-    instructions: options.instructions ?? "",
+    instructions: buildInstructions(options.instructions),
     highlight: null,
     startedAt: Date.now(),
   };

@@ -147,7 +147,7 @@ export function GameTable() {
               >
                 <Badge variant="secondary">{session.name}</Badge>
               </motion.span>
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span
                   key={`phase-${session.phase}`}
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -207,7 +207,7 @@ export function GameTable() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4">
           {/* Bot seats */}
           <motion.div layout className="flex flex-wrap justify-center gap-4">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="popLayout" initial={false}>
               {bots.map((bot) => (
                 <motion.div
                   key={bot.id}
@@ -405,7 +405,7 @@ export function GameTable() {
                   create_game or call set_legal_actions.
                 </p>
               ) : (
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="popLayout" initial={false}>
                   {view.legalActions.map((action) => (
                     <motion.div
                       key={action.id}
