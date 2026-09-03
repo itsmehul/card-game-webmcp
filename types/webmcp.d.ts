@@ -4,6 +4,9 @@ interface WebMCPRegisteredTool {
   inputSchema?: object;
   annotations?: {
     readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
     untrustedContentHint?: boolean;
   };
   origin?: string;
@@ -19,6 +22,9 @@ interface WebMCPModelContext extends EventTarget {
       outputSchema?: object;
       annotations?: {
         readOnlyHint?: boolean;
+        destructiveHint?: boolean;
+        idempotentHint?: boolean;
+        openWorldHint?: boolean;
         untrustedContentHint?: boolean;
       };
       execute: (

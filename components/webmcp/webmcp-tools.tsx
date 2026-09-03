@@ -3,6 +3,7 @@
 import { useWebMCP, useWebMCPResource } from "@mcp-b/react-webmcp";
 import {
   gameStore,
+  useGameSession,
   listPresetIds,
   listPresets,
   type DealSpec,
@@ -347,10 +348,17 @@ function ok(data: unknown) {
   };
 }
 
-function fail(error: unknown) {
+/**
+ * Return a descriptive error with a recovery hint so the agent can
+ * self-correct and retry with valid parameters (WebMCP best practice:
+ * "validate strictly in code … add descriptive errors to allow the
+ * model to self-correct").
+ */
+function fail(error: unknown, hint?: string) {
   const message = error instanceof Error ? error.message : String(error);
+  const text = hint ? `Error: ${message}\nHint: ${hint}` : `Error: ${message}`;
   return {
-    content: [{ type: "text" as const, text: `Error: ${message}` }],
+    content: [{ type: "text" as const, text }],
     isError: true,
   };
 }
@@ -361,33 +369,32 @@ function asLegalActions(raw: unknown): LegalAction[] {
 }
 
 /**
- * Registers all card-table tools with document.modelContext.
- * Mount once inside the client table shell.
+ * Discovery & setup tools — always registered so the agent can browse
+ * presets and create a game even when no session is active.
+ *
+ * WebMCP best practice: "Register tools when they're useful … then
+ * unregister when the tool is no longer usable."
  */
-export function WebMCPTools() {
+function DiscoveryTools() {
   useWebMCP({
     name: "list_presets",
     description:
-      "List catalog presets (id, name, summary). Call before inventing a custom game. Playbook: skills://card-table/SKILL.md. Discover by pattern search; the host suffixes this name.",
+      "List every catalog preset with its id, display name, and one-line summary. Call this before inventing a custom game to avoid duplicating a built-in. Returns an array of preset objects.",
     inputSchema: EMPTY_SCHEMA,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: false, untrustedContentHint: false },
     execute: async () => {
       try {
         return ok({ presets: listPresets() });
       } catch (e) {
-        return fail(e);
+        return fail(e, "Ensure the card-table page is loaded.");
       }
     },
   });
 
   useWebMCP({
     name: "create_game",
-    description: [
-      "Create a session. Use preset to start a catalog game; omit preset to invent one.",
-      "Catalog: pass preset (texas-holdem|blackjack|war|go-fish); name is optional.",
-      "Custom: pass name, zones, legalActions, instructions. Practice needs legalActions.",
-      "Schema: skills://card-table/reference.md. Discover this tool by pattern search (host suffixes the name). Resets the table.",
-    ].join(" "),
+    description:
+      "Create a new card-game session and reset the table. For a catalog game, pass preset (e.g. texas-holdem, blackjack, war, go-fish); name is optional. For a custom game, omit preset and pass name, zones, legalActions, and instructions. Practice mode requires legalActions so the human has buttons to click.",
     inputSchema: {
       type: "object",
       properties: {
@@ -457,6 +464,7 @@ export function WebMCPTools() {
         },
       },
     } as const,
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         const session = gameStore.createGame({
@@ -501,22 +509,31 @@ export function WebMCPTools() {
           state: gameStore.getStatePayload(),
         });
       } catch (e) {
-        return fail(e);
+        return fail(e, "For catalog games pass a valid preset id from list_presets. For custom games pass name and legalActions.");
       }
     },
   });
 
+  return null;
+}
+
+/**
+ * Game-session tools — only registered while a game session is active.
+ * Unregistered when the session ends, so the agent's tool list stays
+ * clean and unambiguous (WebMCP best practice: manage tool registration).
+ */
+function GameSessionTools() {
   useWebMCP({
     name: "get_game_state",
     description:
-      "Compact agent state: seats, chips, pots, legalActions, in-play cards (not stock), stockCount, last 3 narration lines. Mutating tools return the same shape — skip this call unless that result was lost. Tool routing: skills://card-table/SKILL.md",
+      "Read the compact agent state: seats, chips, pots, legalActions, in-play cards (not stock), stockCount, and the last 3 narration lines. Every mutating tool already returns this same payload — only call get_game_state when that prior result was lost.",
     inputSchema: EMPTY_SCHEMA,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: false, untrustedContentHint: true },
     execute: async () => {
       try {
         return ok(gameStore.getStatePayload());
       } catch (e) {
-        return fail(e);
+        return fail(e, "Call create_game first to start a session.");
       }
     },
   });
@@ -524,14 +541,15 @@ export function WebMCPTools() {
   useWebMCP({
     name: "shuffle",
     description:
-      "Shuffle all cards back into the stock pile and clear folds. Resets entropy for a new round.",
+      "Collect every card back into the stock pile, shuffle the deck, and unfold all seats. Use this to reset entropy between hands or rounds.",
     inputSchema: EMPTY_SCHEMA,
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     execute: async () => {
       try {
         gameStore.shuffle();
         return ok(gameStore.getStatePayload());
       } catch (e) {
-        return fail(e);
+        return fail(e, "A game session must be active. Call create_game first.");
       }
     },
   });
@@ -539,7 +557,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "deal",
     description:
-      "Deal count cards from stock into a player's hand (or use target 'play' for community/tableau cards).",
+      "Deal a number of cards from the stock into a player's hand. Pass playerId 'play' to deal face-up community or tableau cards instead.",
     inputSchema: {
       type: "object",
       properties: {
@@ -556,6 +574,7 @@ export function WebMCPTools() {
       },
       required: ["playerId", "count"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         const playerId = String(args?.playerId);
@@ -572,14 +591,14 @@ export function WebMCPTools() {
         }
         return ok(gameStore.getStatePayload());
       } catch (e) {
-        return fail(e);
+        return fail(e, "Check that the playerId matches a seat id (human, bot_1, …) or 'play', and that enough cards remain in the stock.");
       }
     },
   });
 
   useWebMCP({
     name: "draw",
-    description: "Draw one or more cards from stock into a player's hand.",
+    description: "Draw one or more cards from the stock into a player's hand. Defaults to 1 card with hidden visibility.",
     inputSchema: {
       type: "object",
       properties: {
@@ -592,6 +611,7 @@ export function WebMCPTools() {
       },
       required: ["playerId"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.draw(
@@ -608,7 +628,7 @@ export function WebMCPTools() {
 
   useWebMCP({
     name: "play",
-    description: "Move card(s) from a player's hand into the play area.",
+    description: "Move one or more cards from a player's hand into the shared play area face-up.",
     inputSchema: {
       type: "object",
       properties: {
@@ -624,6 +644,7 @@ export function WebMCPTools() {
       },
       required: ["playerId", "cardIds"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.play(
@@ -640,7 +661,7 @@ export function WebMCPTools() {
 
   useWebMCP({
     name: "discard",
-    description: "Send card(s) from a player's hand to the discard pile.",
+    description: "Move one or more cards from a player's hand to the shared discard pile.",
     inputSchema: {
       type: "object",
       properties: {
@@ -656,6 +677,7 @@ export function WebMCPTools() {
       },
       required: ["playerId", "cardIds"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.discard(
@@ -672,7 +694,7 @@ export function WebMCPTools() {
 
   useWebMCP({
     name: "capture",
-    description: "Move card(s) into a player's capture/score pile.",
+    description: "Move one or more cards into a player's capture (score) pile, typically after winning a trick or completing a set.",
     inputSchema: {
       type: "object",
       properties: {
@@ -688,6 +710,7 @@ export function WebMCPTools() {
       },
       required: ["playerId", "cardIds"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.capture(
@@ -704,7 +727,7 @@ export function WebMCPTools() {
 
   useWebMCP({
     name: "reveal",
-    description: "Change visibility of card(s) (e.g. flip hole cards or flop).",
+    description: "Change the visibility of one or more cards, such as flipping hole cards face-up or turning over a flop. Defaults to public visibility.",
     inputSchema: {
       type: "object",
       properties: {
@@ -719,6 +742,7 @@ export function WebMCPTools() {
       },
       required: ["cardIds"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.reveal(
@@ -735,8 +759,9 @@ export function WebMCPTools() {
 
   useWebMCP({
     name: "rotate_turn",
-    description: "Pass the active turn to the next non-folded player.",
+    description: "Advance the active turn to the next non-folded player in the current turn direction. For targeted turn changes, use set_turn instead.",
     inputSchema: EMPTY_SCHEMA,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async () => {
       try {
         gameStore.rotateTurn();
@@ -758,6 +783,7 @@ export function WebMCPTools() {
       },
       required: ["phase"],
     } as const,
+    annotations: { readOnlyHint: false, idempotentHint: true },
     execute: async (args) => {
       try {
         gameStore.setPhase(String(args?.phase));
@@ -782,6 +808,7 @@ export function WebMCPTools() {
       },
       required: ["actions"],
     } as const,
+    annotations: { readOnlyHint: false, idempotentHint: true },
     execute: async (args) => {
       try {
         gameStore.setLegalActions(asLegalActions(args?.actions));
@@ -795,7 +822,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "chip_action",
     description:
-      "Apply a betting action for a player: fold, check, call, bet, or raise.",
+      "Apply a betting action for a player. Fold removes them from the hand; check passes when no bet is owed; call matches the current bet; bet and raise require a positive amount.",
     inputSchema: {
       type: "object",
       properties: {
@@ -811,6 +838,7 @@ export function WebMCPTools() {
       },
       required: ["playerId", "action"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.chipAction(
@@ -828,7 +856,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "apply_move",
     description:
-      "Apply a primitive move for a seat. In practice mode, rejected for the human (they must click). In tutorial mode, allowed for any seat including the human.",
+      "Apply a primitive move for any seat. In practice mode, the human seat is rejected because the human plays via on-screen buttons. In tutorial mode, all seats including the human are allowed. Prefer the named tool (draw, play, transfer_cards) over apply_move when one exists.",
     inputSchema: {
       type: "object",
       properties: {
@@ -867,6 +895,7 @@ export function WebMCPTools() {
       },
       required: ["playerId", "primitive"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.applyMove({
@@ -904,7 +933,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "deal_batch",
     description:
-      "Deal several lines at once so seats can get different counts and visibilities in one step — a Blackjack dealer up-card beside face-down hole cards, or an uneven opening. Use target 'play' for community cards and 'each' for every active seat.",
+      "Deal multiple lines in one step, giving different seats different counts and visibilities. Useful for Blackjack (dealer up-card beside face-down hole cards) or any uneven opening deal. Use target 'play' for community cards and 'each' for every active seat.",
     inputSchema: {
       type: "object",
       properties: {
@@ -912,6 +941,7 @@ export function WebMCPTools() {
       },
       required: ["specs"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.dealBatch((args?.specs ?? []) as DealSpec[]);
@@ -925,8 +955,9 @@ export function WebMCPTools() {
   useWebMCP({
     name: "transfer_cards",
     description:
-      "Move cards from one seat to another. Set rank to take every card of that rank (the Go Fish ask), cardIds for specific cards, or count for the top N. Errors when nothing matches unless allowEmpty is true — that error is the 'go fish' signal.",
+      "Move cards between two seats. Set rank to take every card of that rank (the Go Fish ask), cardIds for explicit cards, or count for the top N from the source. When nothing matches and allowEmpty is false, the tool returns an error — that error is the 'go fish' signal to draw from stock instead.",
     inputSchema: TRANSFER_SPEC,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.transfer(args as unknown as TransferSpec);
@@ -940,7 +971,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "play_all",
     description:
-      "Every active seat plays cards from hand into the play area at once — simultaneous flips like War, where turn order does not apply.",
+      "Every active (non-folded) seat simultaneously plays cards from hand into the play area. Used for games like War where all players flip at once instead of taking turns.",
     inputSchema: {
       type: "object",
       properties: {
@@ -948,6 +979,7 @@ export function WebMCPTools() {
         visibility: VISIBILITY,
       },
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.playAll(
@@ -964,8 +996,9 @@ export function WebMCPTools() {
   useWebMCP({
     name: "sweep_zone",
     description:
-      "Award every card in a zone to a seat — the War battle winner, or a trick. Use to 'winner' to resolve the highest card in the play area automatically; it errors on a tie so you can run a war.",
+      "Award every card in a zone to one seat. Pass to as 'winner' to automatically resolve the highest card in the play area; a tie returns an error so you can run a tiebreaker (e.g. War). Commonly used after compare_zone.",
     inputSchema: SWEEP_SPEC,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.sweepZone(args as unknown as SweepSpec);
@@ -979,12 +1012,12 @@ export function WebMCPTools() {
   useWebMCP({
     name: "compare_zone",
     description:
-      "Read the highest card each seat has in a zone and who is winning. Returns winners (more than one means a tie). Use before sweep_zone to narrate the result.",
+      "Read each seat's highest card in a zone and determine who is winning. Returns a winners array (more than one entry means a tie). Call before sweep_zone so you can narrate the outcome.",
     inputSchema: {
       type: "object",
       properties: { zone: ZONE },
     } as const,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: false },
     execute: async (args) => {
       try {
         return ok(gameStore.compareZone(args?.zone as ZoneKind | undefined));
@@ -997,7 +1030,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "collect_sets",
     description:
-      "Move a seat's complete same-rank sets from hand into their capture pile — Go Fish books of four, or pairs. Returns the sets that were collected.",
+      "Move every complete same-rank set from a seat's hand into their capture pile. Use size 4 for Go Fish books or size 2 for pairs. Returns the collected sets so you can narrate which ranks were completed.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1009,6 +1042,7 @@ export function WebMCPTools() {
       },
       required: ["playerId"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         const { sets } = gameStore.collectSets(
@@ -1025,7 +1059,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "score_hand",
     description:
-      "Score a seat's hand with configurable rank values instead of hard-coded rules. Blackjack: scoring {aceAlt:11, bustOver:21} returns total, soft, and busted. Omit scoring for plain pip totals.",
+      "Calculate a seat's hand total with configurable rank values. For Blackjack, pass scoring {aceAlt: 11, bustOver: 21} to get total, soft flag, and busted flag. Omit scoring for plain pip-value totals.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1034,7 +1068,7 @@ export function WebMCPTools() {
       },
       required: ["playerId"],
     } as const,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: false },
     execute: async (args) => {
       try {
         return ok(
@@ -1052,7 +1086,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "set_turn",
     description:
-      "Give the turn to a specific seat, or move it symbolically: next, previous, same (extra turn), first. Use this for dealer-after-player order or 'keep going until you fail' turns that plain rotation cannot express.",
+      "Give the active turn to a specific seat by id, or use a symbolic target: next, previous, same (grants an extra turn), or first. Use this for dealer-after-player sequences or repeated turns that plain rotation cannot express.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1063,6 +1097,7 @@ export function WebMCPTools() {
       },
       required: ["target"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.moveTurn(String(args?.target));
@@ -1076,7 +1111,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "post_blinds",
     description:
-      "Post forced bets before the deal. Each entry caps at that seat's stack, so a short stack is put all-in automatically.",
+      "Post forced bets (small blind, big blind) before the deal begins. Each entry caps at that seat's remaining stack, so a short-stacked seat goes all-in automatically.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1094,6 +1129,7 @@ export function WebMCPTools() {
       },
       required: ["blinds"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.postBlinds(
@@ -1109,9 +1145,9 @@ export function WebMCPTools() {
   useWebMCP({
     name: "get_pots",
     description:
-      "Split the pot into main and side pots from what each seat committed this hand, with the seats eligible for each. Folded seats still fund the layers they paid into.",
+      "Split the pot into main and side pots based on each seat's committed chips this hand. Returns eligible seats for each pot layer. Folded seats still fund the layers they paid into but are not eligible to win.",
     inputSchema: EMPTY_SCHEMA,
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: false },
     execute: async () => {
       try {
         return ok({ pots: gameStore.computePots() });
@@ -1124,7 +1160,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "award_pot",
     description:
-      "Pay a pot to one or more winners, splitting evenly. Pass amount to settle a single side pot from get_pots; omit it to award the whole pot.",
+      "Pay a pot to one or more winners, splitting the chips evenly (odd chips go to the first winner). Pass amount to settle a specific side pot from get_pots; omit amount to award the entire pot.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1133,6 +1169,7 @@ export function WebMCPTools() {
       },
       required: ["winnerIds"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.awardPot(
@@ -1149,7 +1186,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "award_chips",
     description:
-      "Adjust a seat's stack directly by a positive or negative amount — Blackjack wager settlement, bonuses, or penalties outside the pot.",
+      "Adjust a seat's chip stack directly by a positive or negative amount, bypassing the pot. Use for Blackjack wager settlement, bonuses, or penalties.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1158,6 +1195,7 @@ export function WebMCPTools() {
       },
       required: ["playerId", "amount"],
     } as const,
+    annotations: { readOnlyHint: false, openWorldHint: false },
     execute: async (args) => {
       try {
         gameStore.awardChips(String(args?.playerId), Number(args?.amount ?? 0));
@@ -1171,13 +1209,14 @@ export function WebMCPTools() {
   useWebMCP({
     name: "reset_round",
     description:
-      "Clear betting bookkeeping. scope 'betting' clears the current round's contributions and current bet (between streets); scope 'hand' also clears per-hand commitments and unfolds every seat (new hand).",
+      "Clear betting bookkeeping between streets or hands. Scope 'betting' clears the current round's contributions and resets the current bet (use between streets like flop → turn). Scope 'hand' also clears per-hand commitments and unfolds every seat (use when starting a new hand).",
     inputSchema: {
       type: "object",
       properties: {
         scope: { type: "string", enum: ["betting", "hand"] },
       },
     } as const,
+    annotations: { readOnlyHint: false, destructiveHint: true },
     execute: async (args) => {
       try {
         if (args?.scope === "hand") {
@@ -1195,7 +1234,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "set_instructions",
     description:
-      "Replace the student-facing How to play sidebar. Write rules, goal, and what the human should do this turn. Call again when the game or decision changes.",
+      "Replace the student-facing How to Play sidebar text. Write the game's rules, goal, and what the human should do on their current turn. Call again whenever the game phase or available decisions change.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1203,6 +1242,7 @@ export function WebMCPTools() {
       },
       required: ["text"],
     } as const,
+    annotations: { readOnlyHint: false, idempotentHint: true, untrustedContentHint: true },
     execute: async (args) => {
       try {
         gameStore.setInstructions(String(args?.text ?? ""));
@@ -1216,7 +1256,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "narrate",
     description:
-      "Append a short educational explanation to the narration log for the student.",
+      "Append a short, educational explanation to the narration log visible to the student. Keep entries concise — one or two sentences describing what just happened and why.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1224,6 +1264,7 @@ export function WebMCPTools() {
       },
       required: ["text"],
     } as const,
+    annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: async (args) => {
       try {
         gameStore.narrate(String(args?.text ?? ""));
@@ -1234,6 +1275,14 @@ export function WebMCPTools() {
     },
   });
 
+  return null;
+}
+
+/**
+ * Resources — always registered so agents can read the playbook and
+ * reference even before a game starts.
+ */
+function SkillResources() {
   useWebMCPResource({
     uri: "skills://card-table/SKILL.md",
     name: "Card Table Skill",
@@ -1267,4 +1316,26 @@ export function WebMCPTools() {
   });
 
   return null;
+}
+
+/**
+ * Registers card-table tools with document.modelContext.
+ * Mount once inside the client table shell.
+ *
+ * Follows WebMCP best practices:
+ * - Discovery tools (list_presets, create_game) are always registered.
+ * - Game-session tools are registered only when a session exists and
+ *   unregistered when it ends, keeping the agent's tool list clean.
+ * - Skill resources are always available for reference.
+ */
+export function WebMCPTools() {
+  const session = useGameSession();
+
+  return (
+    <>
+      <DiscoveryTools />
+      {session && <GameSessionTools />}
+      <SkillResources />
+    </>
+  );
 }
