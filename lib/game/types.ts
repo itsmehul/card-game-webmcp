@@ -264,6 +264,8 @@ export interface Highlight {
   playerId?: string;
   /** Optional short label shown near the highlight. */
   label?: string;
+  /** When set, glow this legal-action button; the label renders on that control (click cue). */
+  actionId?: string;
 }
 
 export interface NarrationEntry {

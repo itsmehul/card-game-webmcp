@@ -85,15 +85,17 @@ function applyHighlight(args: {
   target?: unknown;
   playerId?: unknown;
   label?: unknown;
+  actionId?: unknown;
 }) {
-  if (!args?.target) {
+  if (!args?.target && !args?.actionId) {
     gameStore.setHighlight(null);
     return null;
   }
   const highlight: Highlight = {
-    target: String(args.target),
+    target: args.target ? String(args.target) : "actions",
     playerId: args.playerId ? String(args.playerId) : undefined,
     label: args.label ? String(args.label) : undefined,
+    actionId: args.actionId ? String(args.actionId) : undefined,
   };
   gameStore.setHighlight(highlight);
   return highlight;
@@ -395,7 +397,7 @@ function TutorialTools() {
   useWebMCP({
     name: "coach",
     description:
-      "Tutorial one-shot: optional narrate + highlight, then await a human click. Returns the click result plus compact state — do not call get_game_state after. Prefer over separate narrate/highlight/await when teaching one step.",
+      "Tutorial one-shot: optional narrate + highlight, then await a human click. Returns the click result plus compact state — do not call get_game_state after. Prefer over separate narrate/highlight/await when teaching one step. With expectActionId, the click cue glows on that action button (defaults target to actions).",
     inputSchema: {
       type: "object",
       properties: {
@@ -426,13 +428,26 @@ function TutorialTools() {
         const entry = args?.text
           ? gameStore.narrate(String(args.text))
           : undefined;
-        if (args?.target !== undefined) {
-          applyHighlight(args);
+        const expectActionId = args?.expectActionId
+          ? String(args.expectActionId)
+          : undefined;
+        // Click cues always pin to the expected action button so labels are not
+        // clipped on top seats and the student sees exactly what to press.
+        if (args?.target !== undefined || expectActionId) {
+          applyHighlight({
+            target:
+              args?.target !== undefined && args?.target !== null
+                ? args.target
+                : expectActionId
+                  ? "actions"
+                  : undefined,
+            playerId: args?.playerId,
+            label: args?.label,
+            actionId: expectActionId,
+          });
         }
         const result = await gameStore.resolveTutorialAwait({
-          expectActionId: args?.expectActionId
-            ? String(args.expectActionId)
-            : undefined,
+          expectActionId,
           timeoutMs: args?.timeoutMs ? Number(args.timeoutMs) : undefined,
         });
         return ok(entry ? { ...result, entry } : result);

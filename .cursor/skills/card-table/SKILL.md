@@ -69,3 +69,4 @@ Write an XState `machine` (see `reference.md`): states, `meta.controls` (human b
 - Keep `narrate` educational and short; do not dump JSON state.
 - Do not reason about award amounts or next phases for catalog games — the FSM already did.
 - Prefer one `actions` highlight when coaching a click; reserve hand highlights for reveal/settlement beats.
+- `coach` with `expectActionId` pins the click cue on that button (label included). Do not put click labels on top bot seats.

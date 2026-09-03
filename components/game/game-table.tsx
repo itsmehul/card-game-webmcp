@@ -42,6 +42,8 @@ export function GameTable() {
   );
 
   const highlight = view?.highlight ?? null;
+  const zoneLabel =
+    highlight?.label && !highlight.actionId ? highlight.label : null;
 
   function isHighlighted(target: string, playerId?: string): boolean {
     if (!highlight) return false;
@@ -217,7 +219,7 @@ export function GameTable() {
           />
         </div>
       ) : (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pb-8 pt-8">
           {/* Bot seats */}
           <div className="flex flex-wrap justify-center gap-2.5">
             <AnimatePresence initial={false}>
@@ -232,13 +234,13 @@ export function GameTable() {
                     bot.folded ? "opacity-40" : ""
                   } ${isHighlighted("hand", bot.id) || isHighlighted(bot.id) ? HIGHLIGHT_CLASSES : ""}`}
                 >
-                  {(isHighlighted("hand", bot.id) || isHighlighted(bot.id)) && highlight?.label && (
+                  {(isHighlighted("hand", bot.id) || isHighlighted(bot.id)) && zoneLabel && (
                     <motion.span
-                      initial={{ opacity: 0, y: 6 }}
+                      initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white"
+                      className="absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md"
                     >
-                      {highlight.label}
+                      {zoneLabel}
                     </motion.span>
                   )}
                   <div className="flex items-center gap-2 text-sm">
@@ -336,9 +338,9 @@ export function GameTable() {
                     Bet {view.chips.currentBet}
                   </span>
                 )}
-                {isHighlighted("pot") && highlight?.label && (
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">
-                    {highlight.label}
+                {isHighlighted("pot") && zoneLabel && (
+                  <span className="absolute -bottom-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
+                    {zoneLabel}
                   </span>
                 )}
               </div>
@@ -347,9 +349,9 @@ export function GameTable() {
               {session.enabledZones.stock && (
                 <div className={`rounded-lg transition-shadow duration-300 ${isHighlighted("stock") ? HIGHLIGHT_CLASSES : ""}`}>
                   <StockPile count={view.stockCount} />
-                  {isHighlighted("stock") && highlight?.label && (
-                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">
-                      {highlight.label}
+                  {isHighlighted("stock") && zoneLabel && (
+                    <span className="absolute -bottom-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
+                      {zoneLabel}
                     </span>
                   )}
                 </div>
@@ -365,9 +367,9 @@ export function GameTable() {
                         : "spread")
                     }
                   />
-                  {isHighlighted("play") && highlight?.label && (
-                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">
-                      {highlight.label}
+                  {isHighlighted("play") && zoneLabel && (
+                    <span className="absolute -bottom-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
+                      {zoneLabel}
                     </span>
                   )}
                 </div>
@@ -375,9 +377,9 @@ export function GameTable() {
               {session.enabledZones.discard && (
                 <div className={`rounded-lg transition-shadow duration-300 ${isHighlighted("discard") ? HIGHLIGHT_CLASSES : ""}`}>
                   <DiscardPile top={view.discardTop} count={view.discardCount} />
-                  {isHighlighted("discard") && highlight?.label && (
-                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">
-                      {highlight.label}
+                  {isHighlighted("discard") && zoneLabel && (
+                    <span className="absolute -bottom-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
+                      {zoneLabel}
                     </span>
                   )}
                 </div>
@@ -391,9 +393,9 @@ export function GameTable() {
               isHighlighted("hand", "human") || isHighlighted("human") ? HIGHLIGHT_CLASSES : ""
             }`}
           >
-            {(isHighlighted("hand", "human") || isHighlighted("human")) && highlight?.label && (
-              <span className="absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">
-                {highlight.label}
+            {(isHighlighted("hand", "human") || isHighlighted("human")) && zoneLabel && (
+              <span className="absolute -top-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
+                {zoneLabel}
               </span>
             )}
             <div className="flex items-center gap-2 text-sm">
@@ -440,25 +442,34 @@ export function GameTable() {
 
           {/* Actions — driven entirely by agent-defined legalActions */}
           <div
-            className={`relative mx-auto flex w-full max-w-3xl flex-col gap-1.5 rounded-lg px-1 py-1 transition-shadow duration-300 ${isHighlighted("actions") ? HIGHLIGHT_CLASSES : ""}`}
+            className={`relative mx-auto flex w-full max-w-3xl flex-col gap-1.5 rounded-lg px-1 py-1 transition-shadow duration-300 ${
+              isHighlighted("actions") && !highlight?.actionId ? HIGHLIGHT_CLASSES : ""
+            }`}
           >
-            {isHighlighted("actions") && highlight?.label && (
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white">
-                {highlight.label}
+            {isHighlighted("actions") && zoneLabel && (
+              <span className="absolute -top-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
+                {zoneLabel}
               </span>
             )}
             <div className="flex flex-wrap items-center justify-center gap-2">
               {view.legalActions.length > 0 ? (
                 <AnimatePresence initial={false}>
-                  {view.legalActions.map((action) => (
+                  {view.legalActions.map((action) => {
+                    const actionCue = highlight?.actionId === action.id;
+                    return (
                     <motion.div
                       key={action.id}
                       initial={{ opacity: 0, y: 8, scale: 0.94 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.94 }}
                       transition={{ type: "spring", stiffness: 320, damping: 24 }}
-                      className="flex items-center gap-1.5"
+                      className={`relative flex items-center gap-1.5 rounded-lg ${actionCue ? HIGHLIGHT_CLASSES : ""}`}
                     >
+                      {actionCue && highlight?.label && (
+                        <span className="absolute -top-7 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
+                          {highlight.label}
+                        </span>
+                      )}
                       {action.promptAmount && (
                         <input
                           type="number"
@@ -496,7 +507,8 @@ export function GameTable() {
                         {action.label}
                       </Button>
                     </motion.div>
-                  ))}
+                    );
+                  })}
                 </AnimatePresence>
               ) : !isHumanTurn ? (
                 <p className="inline-flex items-center gap-1 text-sm text-emerald-400/80">
