@@ -113,4 +113,45 @@ describe("tutorial await_user_action", () => {
     ];
     expect(runEvals(results).failed).toBe(0);
   });
+
+  it("resolveTutorialAwait attaches compact state and acks the click", async () => {
+    gameStore.createGame({ preset: "blackjack", mode: "tutorial" });
+    const bet = gameStore.getSnapshot()!.legalActions[0];
+    const pending = gameStore.resolveTutorialAwait({ expectActionId: "bet" });
+    gameStore.applyHumanLegalAction(bet);
+    const result = await pending;
+
+    const results: EvalResult[] = [
+      result.actionId === "bet" && result.matched && result.state?.phase === "waiting_to_deal"
+        ? pass("await_returns_state")
+        : fail(
+            "await_returns_state",
+            `expected bet + waiting_to_deal state, got ${JSON.stringify({
+              actionId: result.actionId,
+              matched: result.matched,
+              phase: result.state?.phase,
+            })}`,
+          ),
+    ];
+
+    const timed = await gameStore.awaitUserAction({ timeoutMs: 30 });
+    results.push(
+      timed.timedOut
+        ? pass("resolve_acks_click")
+        : fail("resolve_acks_click", "click replayed after resolveTutorialAwait"),
+    );
+
+    expect(runEvals(results).failed).toBe(0);
+  });
+
+  it("narrate returns only the appended entry", () => {
+    gameStore.createGame({ preset: "blackjack", mode: "tutorial" });
+    const entry = gameStore.narrate("Soft tip: stand on hard 17+.");
+    const results: EvalResult[] = [
+      entry.text === "Soft tip: stand on hard 17+." && typeof entry.id === "string"
+        ? pass("narrate_entry_shape")
+        : fail("narrate_entry_shape", JSON.stringify(entry)),
+    ];
+    expect(runEvals(results).failed).toBe(0);
+  });
 });

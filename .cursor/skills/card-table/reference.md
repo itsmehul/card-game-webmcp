@@ -64,4 +64,4 @@ Human clicks send `{ type: event, selectedCardIds?, amount? }` to the machine.
 
 `handBusted`, `handScoreEq`, `handScoreGte`, `zoneCountEq`, `stockEmpty`, `warIsTie`, `warHasWinner`, `playEmpty`, `humanHandEmpty`, `askTargetHasRank`, `isHumanTurn`, `isBotTurn`, `onlyOneActive`, `boardCountEq`, `humanHasBooks`, `condition`.
 
-Put settlement and phase changes in the machine — agents only have `create_game` / `get_game_state` / `narrate` / `set_instructions` / `highlight` / `await_user_action`.
+Put settlement and phase changes in the machine — agents only have `create_game` / `get_game_state` / `narrate` / `set_instructions` / `highlight` / `await_user_action` / `coach`. `await_user_action` and `coach` return compact `state`; do not follow with `get_game_state`.

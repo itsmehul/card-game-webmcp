@@ -267,6 +267,18 @@ export const gameStore = {
       pendingAwait = entry;
     });
   },
+  /**
+   * Tutorial tool helper: wait for a click, ack it, and attach compact state
+   * so agents do not need a follow-up get_game_state.
+   */
+  async resolveTutorialAwait(
+    opts: AwaitUserActionOptions = {},
+  ): Promise<AwaitUserActionResult & { state?: ReturnType<typeof getOmniscientState> }> {
+    const result = await gameStore.awaitUserAction(opts);
+    if (result.timedOut || result.cancelled) return result;
+    gameStore.ackUserAction();
+    return { ...result, state: gameStore.getStatePayload() };
+  },
   ackUserAction() {
     ackedSeq = humanActionSeq;
   },
@@ -274,7 +286,8 @@ export const gameStore = {
     return mutateSession((s) => setMode(s, mode));
   },
   narrate(text: string) {
-    return mutateSession((s) => narrate(s, text));
+    const next = mutateSession((s) => narrate(s, text));
+    return next.narration[next.narration.length - 1]!;
   },
   setInstructions(text: string) {
     return mutateSession((s) => setInstructions(s, text));
