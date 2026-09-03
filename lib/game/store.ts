@@ -485,7 +485,7 @@ export const gameStore = {
 };
 
 if (typeof window !== "undefined") {
-  (window as Record<string, unknown>).gameStore = gameStore;
+  (window as unknown as Record<string, unknown>).gameStore = gameStore;
 }
 
 export function useGameSession(): GameSession | null {
