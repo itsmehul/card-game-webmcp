@@ -42,9 +42,9 @@ export function TableSidebars({
   }
 
   return (
-    <div className="flex h-full min-h-0 shrink-0 self-stretch overflow-hidden">
+    <div className="flex h-full min-h-0 shrink-0 overflow-hidden">
       <nav
-        className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-emerald-900/60 bg-emerald-950/50 py-3"
+        className="flex h-full w-12 shrink-0 flex-col items-center gap-1 border-r border-emerald-900/60 bg-emerald-950/50 py-3"
         aria-label="Sidebars"
       >
         {RAIL.map((item, index) => (
@@ -69,7 +69,7 @@ export function TableSidebars({
           <div className="flex h-11 shrink-0 items-center border-b border-emerald-900/50 px-3 text-emerald-100">
             <span className="font-medium">How to play</span>
           </div>
-          <ScrollArea className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+          <ScrollArea className="h-0 min-h-0 flex-1 px-3 py-3">
             {instructions.trim() ? (
               <p className="whitespace-pre-wrap leading-relaxed text-emerald-200/90">
                 {instructions}
@@ -91,7 +91,7 @@ export function TableSidebars({
           <div className="flex h-11 shrink-0 items-center border-b border-emerald-900/50 px-3 text-emerald-100">
             <span className="font-medium">Game log</span>
           </div>
-          <ScrollArea className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+          <ScrollArea className="h-0 min-h-0 flex-1 px-3 py-3">
             {logs.length === 0 ? (
               <p className="text-sm text-emerald-700">No narration yet.</p>
             ) : (
