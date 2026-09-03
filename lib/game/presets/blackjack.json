@@ -14,66 +14,77 @@
     "discard": true,
     "capture": false
   },
-  "phase": "waiting_to_deal",
+  "phase": "waiting_for_bet",
   "legalActions": [
     {
-      "id": "deal",
-      "label": "Deal hands",
-      "primitive": "deal_spec",
-      "dealSpec": [
-        { "target": "human", "count": 2, "visibility": "hidden" },
-        { "target": "bot_1", "count": 1, "visibility": "public" },
-        { "target": "bot_1", "count": 1, "visibility": "unknown" }
-      ],
-      "nextPhase": "player_act",
+      "id": "bet",
+      "label": "Bet 10",
+      "primitive": "bet",
+      "chipAction": "bet",
+      "amount": 10,
+      "nextPhase": "waiting_to_deal",
       "nextActions": [
         {
-          "id": "hit",
-          "label": "Hit",
-          "primitive": "draw",
-          "count": 1,
-          "visibility": "hidden",
-          "branches": [
+          "id": "deal",
+          "label": "Deal hands",
+          "primitive": "deal_spec",
+          "dealSpec": [
+            { "target": "human", "count": 2, "visibility": "public" },
+            { "target": "bot_1", "count": 1, "visibility": "public" },
+            { "target": "bot_1", "count": 1, "visibility": "unknown" }
+          ],
+          "nextPhase": "player_act",
+          "nextActions": [
             {
-              "when": {
-                "subject": "hand_busted",
-                "scoring": { "aceAlt": 11, "bustOver": 21 }
-              },
-              "nextPhase": "bust",
-              "nextActions": [],
-              "narration": "Bust! Ask the agent to settle the wager."
+              "id": "hit",
+              "label": "Hit",
+              "primitive": "draw",
+              "count": 1,
+              "visibility": "public",
+              "branches": [
+                {
+                  "when": {
+                    "subject": "hand_busted",
+                    "scoring": { "aceAlt": 11, "bustOver": 21 }
+                  },
+                  "nextPhase": "bust",
+                  "nextActions": [],
+                  "narration": "Bust! Your hand went over 21."
+                },
+                {
+                  "when": {
+                    "subject": "hand_score",
+                    "op": "eq",
+                    "value": 21,
+                    "scoring": { "aceAlt": 11, "bustOver": 21 }
+                  },
+                  "nextPhase": "dealer_act",
+                  "nextActions": [],
+                  "turnTarget": "bot_1",
+                  "narration": "21. Dealer's turn."
+                },
+                {
+                  "when": { "subject": "always" },
+                  "narration": "You hit. Hit again or stand."
+                }
+              ]
             },
             {
-              "when": {
-                "subject": "hand_score",
-                "op": "eq",
-                "value": 21,
-                "scoring": { "aceAlt": 11, "bustOver": 21 }
-              },
+              "id": "stand",
+              "label": "Stand",
+              "primitive": "pass",
               "nextPhase": "dealer_act",
               "nextActions": [],
               "turnTarget": "bot_1",
-              "narration": "21. Dealer plays — ask the agent to finish."
-            },
-            {
-              "when": { "subject": "always" },
-              "narration": "You hit. Hit again or stand."
+              "narration": "You stand. Dealer's turn."
             }
-          ]
-        },
-        {
-          "id": "stand",
-          "label": "Stand",
-          "primitive": "pass",
-          "nextPhase": "dealer_act",
-          "nextActions": [],
-          "turnTarget": "bot_1",
-          "narration": "You stand. Dealer's turn — ask the agent to finish."
+          ],
+          "narration": "Hands dealt. The dealer shows one card. Hit or stand."
         }
       ],
-      "narration": "Hands dealt. The dealer shows one card. Hit or stand."
+      "narration": "Bet placed. Deal the cards."
     }
   ],
-  "instructions": "You get two cards face down, the dealer gets one up and one down. Hit to draw; the table detects a bust or a 21 on its own and ends your turn. Stand passes play to the dealer. Ask the agent to play the dealer with score_hand (aceAlt 11, bustOver 21) and settle with award_chips.",
-  "openingNarration": "Blackjack ready. Deal hands, then hit or stand."
+  "instructions": "Blackjack. Goal: beat the dealer without going over 21. Number cards = face value, face cards = 10, Aces = 1 or 11 (whichever is better). The dealer must hit until they have at least 17. Flow: 1) Bet 10. 2) Deal: player gets two face-up cards, dealer gets one face-up and one hole card. 3) Player hits or stands; bust (over 21) loses immediately. 4) Reveal the dealer's hole card, score the dealer, and draw until the dealer has 17+. 5) Settle: if player wins, call award_pot(['human']) to return the bet and award_chips('human', 10) for even-money profit (award_chips('human', 15) for a natural Blackjack). If dealer wins, call award_pot(['bot_1']). On a push, award_pot(['human']).",
+  "openingNarration": "Blackjack ready. Bet 10, then deal the cards."
 }

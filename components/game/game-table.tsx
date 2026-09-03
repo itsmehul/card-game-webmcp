@@ -47,8 +47,11 @@ export function GameTable() {
     if (highlight.target === playerId) return true;
     // Zone target matches
     if (highlight.target !== target) return false;
-    // If highlight has a playerId scope, it must match
-    if (highlight.playerId && playerId && highlight.playerId !== playerId) return false;
+    // Zone targets that are seat-specific default to the human seat when no scope is given,
+    // matching the highlight tool description. Otherwise the scope must match.
+    const scopedZones = ["hand", "capture"];
+    const expectedPlayerId = highlight.playerId ?? (scopedZones.includes(target) ? "human" : undefined);
+    if (expectedPlayerId && playerId && expectedPlayerId !== playerId) return false;
     return true;
   }
 

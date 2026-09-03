@@ -43,7 +43,7 @@ Host names are **suffixed** (\`list_presets_bb8b\`, not \`list_presets\`). Looki
 | Compact state (if mutate result lost) | \`get_game_state\` |
 | Human buttons / next decision | \`set_legal_actions\` |
 | Sidebar how-to | \`set_instructions\` |
-| Focus student attention | \`highlight\` (target + optional label; null to clear) |
+| Focus student attention | \`highlight\` (zone/player id target + optional playerId scope + label; null to clear) |
 | Student log | \`narrate\` (short) |
 | Phase label | \`set_phase\` |
 | Whose turn | \`set_turn\` (\`next\` / \`previous\` / \`same\` / \`first\` / id) or \`rotate_turn\` |
@@ -1263,17 +1263,8 @@ function GameSessionTools() {
       properties: {
         target: {
           type: "string",
-          enum: [
-            "stock",
-            "hand",
-            "play",
-            "discard",
-            "capture",
-            "actions",
-            "pot",
-          ],
           description:
-            "Which element to highlight. Also accepts a player id (human, bot_1, …) to highlight that player's entire seat. Omit or pass null to clear.",
+            "Which element to highlight. Use a zone id ('stock', 'hand', 'play', 'discard', 'capture', 'actions', 'pot') or a player id ('human', 'bot_1', …) to highlight that player's entire seat. For zone targets, pair with playerId to scope to a specific seat (e.g. target 'hand' + playerId 'human'). Omit or pass null to clear.",
         },
         playerId: {
           type: "string",

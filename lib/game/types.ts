@@ -236,7 +236,11 @@ export interface EnabledZones {
 /** How cards in the shared play zone are presented. */
 export type PlayLayout = "spread" | "stack";
 
-/** Element the agent wants to visually highlight for the student. */
+/** Element the agent wants to visually highlight for the student.
+ * Use a zone id (stock/hand/play/discard/capture/actions/pot) or a player id
+ * (human, bot_1, …) to highlight a whole seat. For zone targets, pair with
+ * playerId to scope the highlight to a specific seat's zone.
+ */
 export type HighlightTarget =
   | "stock"
   | "hand"
@@ -248,9 +252,9 @@ export type HighlightTarget =
   | (string & {}); // also accepts a player id like "human", "bot_1"
 
 export interface Highlight {
-  /** Which UI element to glow. */
+  /** Which UI element or seat to glow. */
   target: HighlightTarget;
-  /** Optional player scope (e.g. highlight bot_1's hand vs human's hand). */
+  /** Optional player scope for zone targets (e.g. highlight bot_1's hand rather than the current player's). Defaults to the current turn holder for hand/capture. */
   playerId?: string;
   /** Optional short label shown near the highlight. */
   label?: string;
