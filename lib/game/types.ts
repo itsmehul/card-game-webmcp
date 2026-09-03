@@ -259,7 +259,8 @@ export interface GameSession {
 }
 
 export interface CreateGameOptions {
-  name: string;
+  /** Display name. Optional when `preset` is set (the catalog name is used). */
+  name?: string;
   botCount?: number;
   jokers?: boolean;
   mode?: SessionMode;

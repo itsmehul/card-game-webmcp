@@ -25,7 +25,16 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
         </h2>
         <p className="text-base leading-relaxed text-emerald-200/75">
           Start a preset from the catalog below, or ask a connected coding agent
-          over WebMCP to create a game that isn&apos;t listed yet.
+          over WebMCP to create a game that isn&apos;t listed yet. Agents should
+          download the{" "}
+          <a
+            href="/skills/card-table/SKILL.md"
+            download="card-table-SKILL.md"
+            className="text-amber-300 underline decoration-amber-700/80 underline-offset-2 hover:text-amber-200"
+          >
+            card-table skill
+          </a>{" "}
+          instead of loading every tool description.
         </p>
       </div>
 
@@ -76,7 +85,14 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
           Ask an agent for a new game
         </h3>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-amber-100/70">
-          Not on the list? Tell your agent to call{" "}
+          Not on the list? Point the agent at{" "}
+          <a
+            href="/skills/card-table/SKILL.md"
+            className="font-medium text-amber-100 underline decoration-amber-700/80 underline-offset-2"
+          >
+            /skills/card-table/SKILL.md
+          </a>
+          , then tell it to call{" "}
           <code className="rounded bg-amber-950/60 px-1.5 py-0.5 font-mono text-xs text-amber-100">
             create_game
           </code>{" "}

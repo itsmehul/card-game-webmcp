@@ -153,7 +153,7 @@ export function createSession(options: CreateGameOptions): GameSession {
 
   return {
     id: uid("game"),
-    name: options.name,
+    name: options.name ?? "Card Game",
     jokers,
     enabledZones,
     players,
@@ -1116,7 +1116,11 @@ export function getHumanView(session: GameSession): HumanGameView {
   };
 }
 
+/** Compact agent-facing state for MCP tools — in-play cards only, recent narration. */
 export function getOmniscientState(session: GameSession) {
+  const stockCount = session.cards.filter(
+    (c) => c.location.zone === "stock",
+  ).length;
   return {
     id: session.id,
     name: session.name,
@@ -1135,16 +1139,17 @@ export function getOmniscientState(session: GameSession) {
     chips: session.chips,
     pots: computePots(session),
     playAreaByPlayer: compareZone(session, "play").byPlayer,
-    narration: session.narration,
-    instructions: session.instructions,
-    cards: session.cards.map((c) => ({
-      id: c.id,
-      rank: c.rank,
-      suit: c.suit,
-      zone: c.location.zone,
-      ownerId: c.location.ownerId ?? null,
-      visibility: c.visibility,
-    })),
-    stockCount: session.cards.filter((c) => c.location.zone === "stock").length,
+    narration: session.narration.slice(-3),
+    cards: session.cards
+      .filter((c) => c.location.zone !== "stock")
+      .map((c) => ({
+        id: c.id,
+        rank: c.rank,
+        suit: c.suit,
+        zone: c.location.zone,
+        ownerId: c.location.ownerId ?? null,
+        visibility: c.visibility,
+      })),
+    stockCount,
   };
 }

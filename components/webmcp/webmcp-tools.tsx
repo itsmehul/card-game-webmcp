@@ -166,7 +166,7 @@ const LEGAL_ACTION_ITEM = {
       type: "string",
       enum: ACTION_PRIMITIVES,
       description:
-        "draw=hit one card; deal_all=deal count to every seat; deal_spec=uneven per-seat deal (needs dealSpec); play/discard/capture need a selected card; play_all=every seat plays from hand at once; transfer=move cards between seats (needs transfer); sweep=award a zone to a seat (needs sweep); collect_sets=move complete same-rank sets to capture (needs setSize); pass=no card/chip move (Stand); chip primitives and all_in for betting",
+        "See GET /skills/card-table/SKILL.md and reference.md for which primitive to use",
     },
     chipAction: {
       type: "string",
@@ -221,7 +221,7 @@ const LEGAL_ACTION_ITEM = {
     dealSpec: {
       type: "array",
       description:
-        "Per-seat deal lines for primitive deal_spec. Blackjack dealer up-card: [{target:'human',count:2,visibility:'hidden'},{target:'bot_1',count:1,visibility:'public'},{target:'bot_1',count:1,visibility:'unknown'}].",
+        "Per-seat deal lines for deal_spec. Examples in GET /skills/card-table/reference.md",
       items: DEAL_SPEC,
     },
     transfer: TRANSFER_SPEC,
@@ -234,7 +234,7 @@ const LEGAL_ACTION_ITEM = {
     branches: {
       type: "array",
       description:
-        "Conditional follow-ups checked in order after the primitive runs; the first match overrides nextPhase/nextActions/turn. Blackjack bust: [{when:{subject:'hand_busted',scoring:{aceAlt:11,bustOver:21}},nextPhase:'bust',nextActions:[],narration:'Bust!'},{when:{subject:'always'}}].",
+        "Ordered conditional follow-ups; first match wins. See GET /skills/card-table/reference.md",
       items: {
         type: "object",
         properties: {
@@ -284,7 +284,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "list_presets",
     description:
-      "List built-in card game presets available on the landing catalog (id, name, summary). Call this before inventing a custom game so you do not duplicate an existing preset. To start one, call create_game with preset set to that id.",
+      "List catalog presets (id, name, summary). Call before inventing a custom game. Playbook: GET /skills/card-table/SKILL.md. Discover by pattern search; the host suffixes this name.",
     inputSchema: EMPTY_SCHEMA,
     annotations: { readOnlyHint: true },
     execute: async () => {
@@ -299,19 +299,19 @@ export function WebMCPTools() {
   useWebMCP({
     name: "create_game",
     description: [
-      "Create a new card game session and define the human controls for practice mode.",
-      "IMPORTANT — when creating any game the human will play:",
-      "1) Pass legalActions with the buttons the human needs at the first decision (e.g. Blackjack: Hit+Stand; Hold'em: Deal hole cards; War: Flip).",
-      "2) Each action needs id, label, and a primitive (draw|deal_all|play|discard|capture|pass|fold|check|call|bet|raise).",
-      "3) Use nextPhase / nextActions / rotateTurn / narration on each control so the UI advances without hard-coded game rules.",
-      "4) After later deals or bot moves, call set_legal_actions again to refresh the control set for the current decision.",
-      "5) Call set_instructions (or pass instructions on create_game) with student-facing how-to text for the How to play sidebar.",
-      `Use preset (${PRESET_IDS.join("|")}) to start a catalog game, or omit preset and pass custom name/zones/jokers/mode/legalActions for a game not in the list. Call list_presets first to see what already exists. Resets the table.`,
+      "Create a session. Use preset to start a catalog game; omit preset to invent one.",
+      "Catalog: pass preset (texas-holdem|blackjack|war|go-fish); name is optional.",
+      "Custom: pass name, zones, legalActions, instructions. Practice needs legalActions.",
+      "Schema: GET /skills/card-table/reference.md. Discover this tool by pattern search (host suffixes the name). Resets the table.",
     ].join(" "),
     inputSchema: {
       type: "object",
       properties: {
-        name: { type: "string", description: "Game display name" },
+        name: {
+          type: "string",
+          description:
+            "Display name. Required for custom games; optional when preset is set.",
+        },
         preset: {
           type: "string",
           enum: PRESET_IDS,
@@ -358,7 +358,7 @@ export function WebMCPTools() {
         legalActions: {
           type: "array",
           description:
-            "Human input controls for practice mode. Define these for the game you create — they become the buttons the student clicks. Example Blackjack: [{id:'hit',label:'Hit',primitive:'draw'},{id:'stand',label:'Stand',primitive:'pass',nextPhase:'dealer_act',nextActions:[]}]. Example deal-then-bet: [{id:'deal',label:'Deal',primitive:'deal_all',count:2,nextPhase:'preflop',nextActions:[{id:'check',label:'Check',primitive:'check',rotateTurn:true},{id:'bet',label:'Bet 50',primitive:'bet',amount:50,rotateTurn:true},{id:'fold',label:'Fold',primitive:'fold',rotateTurn:true}]}].",
+            "Practice-mode human buttons. See GET /skills/card-table/reference.md",
           items: LEGAL_ACTION_ITEM,
         },
         instructions: {
@@ -367,12 +367,12 @@ export function WebMCPTools() {
             "Student-facing how-to for the How to play sidebar. Replace anytime with set_instructions.",
         },
       },
-      required: ["name"],
     } as const,
     execute: async (args) => {
       try {
         const session = gameStore.createGame({
-          name: String(args?.name ?? "Card Game"),
+          name:
+            args?.name !== undefined ? String(args.name) : undefined,
           preset: args?.preset as string | undefined,
           botCount: args?.botCount as number | undefined,
           jokers: args?.jokers as boolean | undefined,
@@ -419,7 +419,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "get_game_state",
     description:
-      "Return the full game state: omniscient view (all cards for bot play) and humanView (what the student sees). Call this before deciding bot moves.",
+      "Compact agent state: seats, chips, pots, legalActions, in-play cards (not stock), stockCount, last 3 narration lines. Mutating tools return the same shape — skip this call unless that result was lost. Tool routing: GET /skills/card-table/SKILL.md",
     inputSchema: EMPTY_SCHEMA,
     annotations: { readOnlyHint: true },
     execute: async () => {
@@ -680,13 +680,8 @@ export function WebMCPTools() {
 
   useWebMCP({
     name: "set_legal_actions",
-    description: [
-      "Replace the human input controls shown in practice mode.",
-      "Call this whenever the legal decisions change (new street, after a hit, after bots act).",
-      "Each action needs id, label, and a primitive so the UI can run it without game-specific code.",
-      "Use nextPhase/nextActions/rotateTurn/narration to chain the next decision.",
-      "Examples: Hit/Stand; Check/Call/Raise/Fold; Play selected card; Deal to all seats.",
-    ].join(" "),
+    description:
+      "Replace practice-mode human buttons. Call when the legal decision changes. Field notes: GET /skills/card-table/reference.md",
     inputSchema: {
       type: "object",
       properties: {

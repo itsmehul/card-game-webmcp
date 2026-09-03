@@ -6,6 +6,7 @@ import { DiscardPile } from "@/components/zones/discard-pile";
 import { Hand } from "@/components/zones/hand";
 import { PlayArea } from "@/components/zones/play-area";
 import { StockPile } from "@/components/zones/stock-pile";
+import { Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
@@ -129,6 +130,14 @@ export function GameTable() {
               ]}
             />
           )}
+          <a
+            href="/skills/card-table/SKILL.md"
+            download="card-table-SKILL.md"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-700/60 px-3 text-sm text-emerald-100 hover:bg-emerald-950/50"
+          >
+            <Download className="size-3.5" aria-hidden />
+            Agent skill
+          </a>
           <WebMCPStatus />
         </div>
       </header>

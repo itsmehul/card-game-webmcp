@@ -16,7 +16,6 @@ import {
   dealToPlay,
   discard,
   draw,
-  getHumanView,
   getOmniscientState,
   moveTurn,
   narrate,
@@ -88,10 +87,15 @@ export const gameStore = {
     return null;
   },
   createGame(options: CreateGameOptions): GameSession {
-    const next =
-      options.preset && isKnownPreset(options.preset)
-        ? createFromPreset(options.preset, options)
-        : createSession(options);
+    const known = Boolean(options.preset && isKnownPreset(options.preset));
+    if (!known && !options.name?.trim()) {
+      throw new Error(
+        "create_game needs a name when inventing a custom game. Pass preset to start a catalog game.",
+      );
+    }
+    const next = known
+      ? createFromPreset(options.preset!, options)
+      : createSession(options);
     setSession(next);
     return next;
   },
@@ -335,11 +339,7 @@ export const gameStore = {
     }
   },
   getStatePayload() {
-    const s = requireSession();
-    return {
-      omniscient: getOmniscientState(s),
-      humanView: getHumanView(s),
-    };
+    return getOmniscientState(requireSession());
   },
 };
 
