@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { CapturePile } from "@/components/zones/capture-pile";
 import { DiscardPile } from "@/components/zones/discard-pile";
 import { Hand } from "@/components/zones/hand";
@@ -135,10 +136,34 @@ export function GameTable() {
           </h1>
           {session ? (
             <>
-              <Badge variant="secondary">{session.name}</Badge>
-              <Badge variant="outline">{session.phase}</Badge>
+              <motion.span
+                layout
+                key={`name-${session.name}`}
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <Badge variant="secondary">{session.name}</Badge>
+              </motion.span>
+              <AnimatePresence mode="popLayout">
+                <motion.span
+                  key={`phase-${session.phase}`}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                >
+                  <Badge variant="outline">{session.phase}</Badge>
+                </motion.span>
+              </AnimatePresence>
               {view?.turnPlayerName && (
-                <Badge variant="muted">Turn · {view.turnPlayerName}</Badge>
+                <motion.span
+                  key={`turn-${view.turnPlayerId}`}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 24 }}
+                >
+                  <Badge variant="muted">Turn · {view.turnPlayerName}</Badge>
+                </motion.span>
               )}
             </>
           ) : (
@@ -178,84 +203,97 @@ export function GameTable() {
       ) : (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4">
           {/* Bot seats */}
-          <div className="flex flex-wrap justify-center gap-4">
-            {bots.map((bot) => (
-              <div
-                key={bot.id}
-                className={`flex min-w-[9rem] w-full max-w-3xl flex-col items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 transition-shadow duration-300 ${
-                  bot.folded ? "opacity-40" : ""
-                } ${isHighlighted("hand", bot.id) || isHighlighted(bot.id) ? HIGHLIGHT_CLASSES : view.turnPlayerId === bot.id ? "ring-1 ring-amber-400/60" : ""}`}
-              >
-                {(isHighlighted("hand", bot.id) || isHighlighted(bot.id)) && highlight?.label && (
-                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white z-10">{highlight.label}</span>
-                )}
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium text-emerald-100">{bot.name}</span>
-                  {bot.chips !== null && (
-                    <span className="text-amber-300/90">{bot.chips}</span>
+          <motion.div layout className="flex flex-wrap justify-center gap-4">
+            <AnimatePresence mode="popLayout">
+              {bots.map((bot) => (
+                <motion.div
+                  key={bot.id}
+                  layout
+                  initial={{ opacity: 0, y: 16, scale: 0.95 }}
+                  animate={{ opacity: bot.folded ? 0.4 : 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 240, damping: 24 }}
+                  className={`flex min-w-[9rem] w-full max-w-3xl flex-col items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 transition-shadow duration-300 ${
+                    bot.folded ? "opacity-40" : ""
+                  } ${isHighlighted("hand", bot.id) || isHighlighted(bot.id) ? HIGHLIGHT_CLASSES : view.turnPlayerId === bot.id ? "ring-1 ring-amber-400/60" : ""}`}
+                >
+                  {(isHighlighted("hand", bot.id) || isHighlighted(bot.id)) && highlight?.label && (
+                    <motion.span
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white z-10">{highlight.label}</motion.span>
                   )}
-                  {session.mode === "tutorial" && bot.handCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setBotCardsRevealed((v) => !v)}
-                      className="inline-flex items-center justify-center rounded p-0.5 text-emerald-400/70 hover:text-emerald-200 transition-colors"
-                      aria-label={botCardsRevealed ? "Hide bot cards" : "Show bot cards"}
-                    >
-                      {botCardsRevealed ? (
-                        <EyeOff className="size-3.5" />
-                      ) : (
-                        <Eye className="size-3.5" />
-                      )}
-                    </button>
-                  )}
-                </div>
-                <div className="flex min-w-0 flex-wrap justify-center gap-1">
-                  {session.mode === "practice" || (session.mode === "tutorial" && !botCardsRevealed) ? (
-                    bot.handCount > 0 && (
-                      <div className="relative">
-                        <PlayingCard
-                          id={`${bot.id}-hidden-hand`}
-                          faceUp={false}
-                          size="sm"
-                        />
-                        <span className="absolute -right-2 -top-2 rounded-full bg-emerald-400 px-1.5 py-0.5 text-xs font-semibold text-emerald-950">
-                          {bot.handCount}
-                        </span>
-                      </div>
-                    )
-                  ) : (
-                    bot.hand.map((c) => (
-                      <PlayingCard
-                        key={c.id}
-                        id={c.id}
-                        faceUp={c.faceUp}
-                        rank={c.rank}
-                        suit={c.suit}
-                        size="sm"
-                      />
-                    ))
-                  )}
-                </div>
-                {session.enabledZones.capture && (
-                  <CapturePile
-                    cards={session.cards
-                      .filter(
-                        (c) =>
-                          c.location.zone === "capture" &&
-                          c.location.ownerId === bot.id,
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-emerald-100">{bot.name}</span>
+                    {bot.chips !== null && (
+                      <span className="text-amber-300/90">{bot.chips}</span>
+                    )}
+                    {session.mode === "tutorial" && bot.handCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setBotCardsRevealed((v) => !v)}
+                        className="inline-flex items-center justify-center rounded p-0.5 text-emerald-400/70 hover:text-emerald-200 transition-colors"
+                        aria-label={botCardsRevealed ? "Hide bot cards" : "Show bot cards"}
+                      >
+                        {botCardsRevealed ? (
+                          <EyeOff className="size-3.5" />
+                        ) : (
+                          <Eye className="size-3.5" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-wrap justify-center gap-1">
+                    {session.mode === "practice" || (session.mode === "tutorial" && !botCardsRevealed) ? (
+                      bot.handCount > 0 && (
+                        <div className="relative">
+                          <PlayingCard
+                            id={`${bot.id}-hidden-hand`}
+                            faceUp={false}
+                            size="sm"
+                            noEnter
+                          />
+                          <span className="absolute -right-2 -top-2 rounded-full bg-emerald-400 px-1.5 py-0.5 text-xs font-semibold text-emerald-950">
+                            {bot.handCount}
+                          </span>
+                        </div>
                       )
-                      .map((c) => ({
-                        id: c.id,
-                        faceUp: c.visibility === "public",
-                        rank: c.visibility === "public" ? c.rank : undefined,
-                        suit: c.visibility === "public" ? c.suit : undefined,
-                      }))}
-                    label="Score"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
+                    ) : (
+                      <AnimatePresence mode="popLayout">
+                        {bot.hand.map((c) => (
+                          <PlayingCard
+                            key={c.id}
+                            id={c.id}
+                            faceUp={c.faceUp}
+                            rank={c.rank}
+                            suit={c.suit}
+                            size="sm"
+                          />
+                        ))}
+                      </AnimatePresence>
+                    )}
+                  </div>
+                  {session.enabledZones.capture && (
+                    <CapturePile
+                      cards={session.cards
+                        .filter(
+                          (c) =>
+                            c.location.zone === "capture" &&
+                            c.location.ownerId === bot.id,
+                        )
+                        .map((c) => ({
+                          id: c.id,
+                          faceUp: c.visibility === "public",
+                          rank: c.visibility === "public" ? c.rank : undefined,
+                          suit: c.visibility === "public" ? c.suit : undefined,
+                        }))}
+                      label="Score"
+                    />
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
 
           {/* Center table */}
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-emerald-900/40 bg-[radial-gradient(ellipse_at_center,#14532d_0%,#052e16_70%)] px-4 py-8 shadow-inner">
@@ -364,48 +402,55 @@ export function GameTable() {
                   create_game or call set_legal_actions.
                 </p>
               ) : (
-                view.legalActions.map((action) => (
-                  <div
-                    key={action.id}
-                    className="flex items-center gap-1.5"
-                  >
-                    {action.promptAmount && (
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        disabled={!interactive}
-                        placeholder={
-                          action.minAmount !== undefined
-                            ? `≥ ${action.minAmount}`
-                            : "Amount"
-                        }
-                        min={action.minAmount}
-                        max={action.maxAmount}
-                        value={amountDraft[action.id] ?? ""}
-                        onChange={(e) =>
-                          setAmountDraft((prev) => ({
-                            ...prev,
-                            [action.id]: e.target.value,
-                          }))
-                        }
-                        className="h-8 w-20 rounded-md border border-emerald-700/60 bg-emerald-950/40 px-2 text-sm text-emerald-50 placeholder:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
-                        aria-label={`Amount for ${action.label}`}
-                      />
-                    )}
-                    <Button
-                      size="sm"
-                      variant={
-                        action.chipAction === "fold" ||
-                        action.primitive === "fold"
-                          ? "destructive"
-                          : "default"
-                      }
-                      onClick={() => handleLegalAction(action)}
+                <AnimatePresence mode="popLayout">
+                  {view.legalActions.map((action) => (
+                    <motion.div
+                      key={action.id}
+                      layout
+                      initial={{ opacity: 0, y: 10, scale: 0.92 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.92 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+                      className="flex items-center gap-1.5"
                     >
-                      {action.label}
-                    </Button>
-                  </div>
-                ))
+                      {action.promptAmount && (
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          disabled={!interactive}
+                          placeholder={
+                            action.minAmount !== undefined
+                              ? `≥ ${action.minAmount}`
+                              : "Amount"
+                          }
+                          min={action.minAmount}
+                          max={action.maxAmount}
+                          value={amountDraft[action.id] ?? ""}
+                          onChange={(e) =>
+                            setAmountDraft((prev) => ({
+                              ...prev,
+                              [action.id]: e.target.value,
+                            }))
+                          }
+                          className="h-8 w-20 rounded-md border border-emerald-700/60 bg-emerald-950/40 px-2 text-sm text-emerald-50 placeholder:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                          aria-label={`Amount for ${action.label}`}
+                        />
+                      )}
+                      <Button
+                        size="sm"
+                        variant={
+                          action.chipAction === "fold" ||
+                          action.primitive === "fold"
+                            ? "destructive"
+                            : "default"
+                        }
+                        onClick={() => handleLegalAction(action)}
+                      >
+                        {action.label}
+                      </Button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               )}
               <Button
                 size="sm"
@@ -416,7 +461,15 @@ export function GameTable() {
               </Button>
             </div>
             {error && (
-              <p className="text-center text-sm text-red-400">{error}</p>
+              <motion.p
+                key={error}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: [0, -6, 6, -4, 4, 0] }}
+                transition={{ duration: 0.4 }}
+                className="text-center text-sm text-red-400"
+              >
+                {error}
+              </motion.p>
             )}
           </div>
         </div>
