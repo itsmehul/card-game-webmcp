@@ -29,7 +29,6 @@ interface WebMCPModelContext extends EventTarget {
       };
       execute: (
         input: Record<string, unknown> | undefined,
-        extras?: { signal?: AbortSignal },
       ) => unknown | Promise<unknown>;
     },
     options?: { signal?: AbortSignal; exposedTo?: string[] },
