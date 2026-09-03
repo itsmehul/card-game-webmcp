@@ -2,9 +2,10 @@
 name: card-table
 description: >-
   Routes Card Table WebMCP tools for catalog and custom card games (Texas Hold'em,
-  Blackjack, War, Go Fish). Use when playing, teaching, dealing, betting, or
-  inventing a game on this table; when calling list_presets, create_game,
-  get_game_state, legalActions, or any user-webmcp-local-relay card tool.
+  Blackjack, War, Go Fish, Crazy Eights, Euchre, Gin Rummy, Bullshit). Use when
+  playing, teaching, dealing, betting, or inventing a game on this table; when
+  calling list_presets, create_game, get_game_state, legalActions, or any
+  user-webmcp-local-relay card tool.
 ---
 
 # Card Table tools
@@ -35,7 +36,7 @@ Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking u
 | Compact state (if mutate result lost) | `get_game_state` |
 | Human buttons / next decision | `set_legal_actions` |
 | Sidebar how-to | `set_instructions` |
-| Focus student attention | `highlight` (target + optional label; null to clear) |
+| Focus student attention | `highlight` (zone/player id target + optional playerId scope + label; null to clear) |
 | Student log | `narrate` (short) |
 | Phase label | `set_phase` |
 | Whose turn | `set_turn` (`next` / `previous` / `same` / `first` / id) or `rotate_turn` |
