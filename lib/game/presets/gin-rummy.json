@@ -1,0 +1,56 @@
+{
+  "id": "gin-rummy",
+  "name": "Gin Rummy",
+  "summary": "Build melds of sets and runs, draw from stock or discard, and knock to catch your opponent.",
+  "botCount": 1,
+  "jokers": false,
+  "chips": false,
+  "turnDirection": "clockwise",
+  "enabledZones": {
+    "stock": true,
+    "hand": true,
+    "play": false,
+    "discard": true,
+    "capture": true
+  },
+  "phase": "waiting_to_deal",
+  "legalActions": [
+    {
+      "id": "deal",
+      "label": "Deal hands",
+      "primitive": "deal_spec",
+      "dealSpec": [
+        { "target": "each", "count": 10, "visibility": "hidden" }
+      ],
+      "nextPhase": "your_turn",
+      "nextActions": [
+        {
+          "id": "draw_stock",
+          "label": "Draw from stock",
+          "primitive": "draw",
+          "count": 1,
+          "visibility": "hidden",
+          "narration": "You drew a card from the stock."
+        },
+        {
+          "id": "discard_card",
+          "label": "Discard card",
+          "primitive": "discard",
+          "requiresCardSelection": true,
+          "rotateTurn": true,
+          "narration": "You discarded a card and passed the turn."
+        },
+        {
+          "id": "knock",
+          "label": "Knock",
+          "primitive": "pass",
+          "nextPhase": "showdown",
+          "narration": "You knocked! Showdown and count deadwood."
+        }
+      ],
+      "narration": "10 cards dealt each. Draw from stock or discard, form melds, and discard to end your turn."
+    }
+  ],
+  "instructions": "Form sets (3-4 of same rank) or runs (3+ suited sequence). On your turn, draw a card from stock, arrange your hand, and discard one card to pass. Knock when your unmatched cards (deadwood) total 10 or less.",
+  "openingNarration": "Gin Rummy ready. Deal 10 cards each and form your melds."
+}

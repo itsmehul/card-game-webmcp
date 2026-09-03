@@ -80,39 +80,10 @@ export function GameCatalog({ onStart }: GameCatalogProps) {
         })}
       </div>
 
-      <aside className="rounded-xl border border-dashed border-amber-600/40 bg-amber-950/20 px-5 py-6">
-        <h3 className="text-base font-semibold text-amber-200">
-          Ask an agent for a new game
-        </h3>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-amber-100/70">
-          Not on the list? Point the agent at{" "}
-          <a
-            href="/skills/card-table/SKILL.md"
-            className="font-medium text-amber-100 underline decoration-amber-700/80 underline-offset-2"
-          >
-            /skills/card-table/SKILL.md
-          </a>
-          , then tell it to call{" "}
-          <code className="rounded bg-amber-950/60 px-1.5 py-0.5 font-mono text-xs text-amber-100">
-            create_game
-          </code>{" "}
-          with a custom name, zones,{" "}
-          <code className="rounded bg-amber-950/60 px-1.5 py-0.5 font-mono text-xs text-amber-100">
-            legalActions
-          </code>
-          , and{" "}
-          <code className="rounded bg-amber-950/60 px-1.5 py-0.5 font-mono text-xs text-amber-100">
-            instructions
-          </code>
-          — or use{" "}
-          <code className="rounded bg-amber-950/60 px-1.5 py-0.5 font-mono text-xs text-amber-100">
-            list_presets
-          </code>{" "}
-          first to see what already exists. Omit{" "}
-          <code className="rounded bg-amber-950/60 px-1.5 py-0.5 font-mono text-xs text-amber-100">
-            preset
-          </code>{" "}
-          when inventing something new.
+      <aside className="rounded-xl border border-dashed border-emerald-700/40 bg-emerald-950/20 px-5 py-4">
+        <p className="max-w-2xl text-sm leading-relaxed text-emerald-100/70">
+          <span className="font-semibold text-emerald-200">Not on the list?</span>{" "}
+          Ask an agent to invent a custom game — it has the playbook via WebMCP.
         </p>
       </aside>
     </div>

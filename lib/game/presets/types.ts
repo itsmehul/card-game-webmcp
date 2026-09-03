@@ -1,6 +1,7 @@
 import type {
   EnabledZones,
   LegalAction,
+  PlayLayout,
   SessionMode,
   TurnDirection,
 } from "../types";
@@ -23,6 +24,7 @@ export interface GamePreset extends PresetCatalogEntry {
   startingStack?: number;
   turnDirection?: TurnDirection;
   enabledZones?: Partial<EnabledZones>;
+  playLayout?: PlayLayout;
   phase?: string;
   legalActions?: LegalAction[];
   instructions?: string;

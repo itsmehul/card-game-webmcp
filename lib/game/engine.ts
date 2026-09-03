@@ -156,6 +156,7 @@ export function createSession(options: CreateGameOptions): GameSession {
     name: options.name ?? "Card Game",
     jokers,
     enabledZones,
+    playLayout: options.playLayout ?? "spread",
     players,
     turnIndex: 0,
     turnDirection: options.turnDirection ?? "clockwise",
@@ -648,7 +649,7 @@ export function evaluateCondition(
 export function applyHumanLegalAction(
   session: GameSession,
   action: LegalAction,
-  opts: { selectedCardId?: string | null; amount?: number } = {},
+  opts: { selectedCardIds?: string[]; amount?: number } = {},
 ): GameSession {
   const primitive = action.primitive ?? action.chipAction;
   const count = action.count ?? 1;
@@ -662,7 +663,7 @@ export function applyHumanLegalAction(
       primitive === "play" ||
       primitive === "discard" ||
       primitive === "capture") &&
-    !opts.selectedCardId
+    !opts.selectedCardIds?.length
   ) {
     throw new Error(`Select a card from your hand to ${action.label}`);
   }
@@ -687,7 +688,7 @@ export function applyHumanLegalAction(
       next = draw(next, "human", count, visibility);
       break;
     case "play":
-      next = play(next, "human", [opts.selectedCardId!], action.visibility ?? "public");
+      next = play(next, "human", opts.selectedCardIds!, action.visibility ?? "public");
       break;
     case "play_all":
       next = playAll(next, count, action.visibility ?? "public");
@@ -696,7 +697,7 @@ export function applyHumanLegalAction(
       next = discard(
         next,
         "human",
-        [opts.selectedCardId!],
+        opts.selectedCardIds!,
         action.visibility ?? "public",
       );
       break;
@@ -704,7 +705,7 @@ export function applyHumanLegalAction(
       next = capture(
         next,
         "human",
-        [opts.selectedCardId!],
+        opts.selectedCardIds!,
         action.visibility ?? "public",
       );
       break;
@@ -715,7 +716,7 @@ export function applyHumanLegalAction(
       const spec = action.transfer;
       // Asking by the selected card's rank is the Go Fish "do you have any…".
       const askedRank = spec.rankFromSelection
-        ? next.cards.find((c) => c.id === opts.selectedCardId)?.rank
+        ? next.cards.find((c) => c.id === opts.selectedCardIds?.[0])?.rank
         : undefined;
       if (spec.rankFromSelection && !askedRank) {
         throw new Error(`Select a card from your hand to ${action.label}`);
@@ -727,8 +728,8 @@ export function applyHumanLegalAction(
           spec.cardIds ??
           (!spec.rankFromSelection &&
           action.requiresCardSelection &&
-          opts.selectedCardId
-            ? [opts.selectedCardId]
+          opts.selectedCardIds?.length
+            ? opts.selectedCardIds
             : undefined),
       });
       break;
@@ -1072,13 +1073,14 @@ export function toCardView(
 
 export function getHumanView(session: GameSession): HumanGameView {
   const viewerId = "human";
+  const omniscient = session.mode === "tutorial";
   const turn = currentPlayer(session);
   const play = session.cards
     .filter((c) => c.location.zone === "play")
-    .map((c) => toCardView(c, viewerId, false));
+    .map((c) => toCardView(c, viewerId, omniscient));
   const discardCards = session.cards.filter((c) => c.location.zone === "discard");
   const discardTop = discardCards.length
-    ? toCardView(discardCards[discardCards.length - 1], viewerId, false)
+    ? toCardView(discardCards[discardCards.length - 1], viewerId, omniscient)
     : null;
 
   return {
@@ -1103,7 +1105,7 @@ export function getHumanView(session: GameSession): HumanGameView {
         handCount: handCards.length,
         captureCount: captureCards.length,
         chips: session.chips?.stacks[p.id] ?? null,
-        hand: handCards.map((c) => toCardView(c, viewerId, false)),
+        hand: handCards.map((c) => toCardView(c, viewerId, omniscient)),
       };
     }),
     stockCount: session.cards.filter((c) => c.location.zone === "stock").length,
@@ -1121,6 +1123,7 @@ export function getOmniscientState(session: GameSession) {
   const stockCount = session.cards.filter(
     (c) => c.location.zone === "stock",
   ).length;
+  const isPractice = session.mode === "practice";
   return {
     id: session.id,
     name: session.name,
@@ -1131,10 +1134,14 @@ export function getOmniscientState(session: GameSession) {
     turnDirection: session.turnDirection,
     jokers: session.jokers,
     enabledZones: session.enabledZones,
+    playLayout: session.playLayout,
     legalActions: session.legalActions,
     players: session.players.map((p) => ({
       ...p,
       allIn: isAllIn(session, p.id),
+      handCount: session.cards.filter(
+        (c) => c.location.zone === "hand" && c.location.ownerId === p.id,
+      ).length,
     })),
     chips: session.chips,
     pots: computePots(session),
@@ -1142,6 +1149,13 @@ export function getOmniscientState(session: GameSession) {
     narration: session.narration.slice(-3),
     cards: session.cards
       .filter((c) => c.location.zone !== "stock")
+      .filter((c) => {
+        // In practice mode, hide the human's hand cards from the agent
+        if (isPractice && c.location.zone === "hand" && c.location.ownerId === "human") {
+          return false;
+        }
+        return true;
+      })
       .map((c) => ({
         id: c.id,
         rank: c.rank,

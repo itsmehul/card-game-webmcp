@@ -1,0 +1,56 @@
+{
+  "id": "crazy-eights",
+  "name": "Crazy Eights",
+  "summary": "Match the top card by suit or rank, play 8s as wildcards, and be the first to clear your hand.",
+  "botCount": 2,
+  "jokers": false,
+  "chips": false,
+  "turnDirection": "clockwise",
+  "enabledZones": {
+    "stock": true,
+    "hand": true,
+    "play": false,
+    "discard": true,
+    "capture": false
+  },
+  "phase": "waiting_to_deal",
+  "legalActions": [
+    {
+      "id": "deal",
+      "label": "Deal hands",
+      "primitive": "deal_spec",
+      "dealSpec": [
+        { "target": "each", "count": 5, "visibility": "hidden" }
+      ],
+      "nextPhase": "your_turn",
+      "nextActions": [
+        {
+          "id": "play_card",
+          "label": "Play matching card",
+          "primitive": "discard",
+          "requiresCardSelection": true,
+          "rotateTurn": true,
+          "narration": "You played a card to the discard pile."
+        },
+        {
+          "id": "draw_card",
+          "label": "Draw card",
+          "primitive": "draw",
+          "count": 1,
+          "visibility": "hidden",
+          "narration": "You drew a card from the stock."
+        },
+        {
+          "id": "pass",
+          "label": "Pass turn",
+          "primitive": "pass",
+          "rotateTurn": true,
+          "narration": "You passed your turn."
+        }
+      ],
+      "narration": "Five cards dealt each. Discard a card matching suit or rank, or an 8 as wild."
+    }
+  ],
+  "instructions": "Match the top discard card by rank or suit. 8s can be played anytime as wildcards. If you have no legal play, draw from the stock or pass your turn. The first player to shed all cards wins.",
+  "openingNarration": "Crazy Eights ready. Deal hands to begin matching suits and ranks!"
+}

@@ -180,7 +180,7 @@ export interface LegalAction {
   /** Cards to draw/deal (default 1) */
   count?: number;
   visibility?: Visibility;
-  /** Require a selected hand card (play/discard/capture) */
+  /** Require one or more selected hand cards (play/discard/capture) */
   requiresCardSelection?: boolean;
   /** Phase label after the click */
   nextPhase?: string;
@@ -233,6 +233,9 @@ export interface EnabledZones {
   capture: boolean;
 }
 
+/** How cards in the shared play zone are presented. */
+export type PlayLayout = "spread" | "stack";
+
 export interface NarrationEntry {
   id: string;
   text: string;
@@ -244,6 +247,7 @@ export interface GameSession {
   name: string;
   jokers: boolean;
   enabledZones: EnabledZones;
+  playLayout: PlayLayout;
   players: Player[];
   turnIndex: number;
   turnDirection: TurnDirection;
@@ -266,6 +270,8 @@ export interface CreateGameOptions {
   mode?: SessionMode;
   turnDirection?: TurnDirection;
   enabledZones?: Partial<EnabledZones>;
+  /** Present shared play cards as individual cards or one layered pile. */
+  playLayout?: PlayLayout;
   chips?: boolean;
   startingStack?: number;
   /** Catalog preset id (e.g. texas-holdem, blackjack). Omit for a custom game. */

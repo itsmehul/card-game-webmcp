@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mcp-b/global": "^5.1.0",
+    "@mcp-b/react-webmcp": "^5.1.0",
     "@mcp-b/webmcp-polyfill": "^5.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

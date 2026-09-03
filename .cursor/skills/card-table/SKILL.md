@@ -9,7 +9,7 @@ description: >-
 
 # Card Table tools
 
-Tool schemas stay on the MCP server. This file is the playbook: **which tool, when**. Do not paste it into narration. Fetch `/skills/card-table/reference.md` only when writing `legalActions` or a custom game.
+Tool schemas stay on the MCP server. This file is the playbook: **which tool, when**. Do not paste it into narration. Fetch `skills://card-table/reference.md` (WebMCP resource) only when writing `legalActions` or a custom game.
 
 Seats: `human`, `bot_1`… or `each` / `others` / `current` / `winner`. Zones: `stock`, `hand`, `play`, `discard`, `capture`.
 

@@ -6,7 +6,7 @@ import { DiscardPile } from "@/components/zones/discard-pile";
 import { Hand } from "@/components/zones/hand";
 import { PlayArea } from "@/components/zones/play-area";
 import { StockPile } from "@/components/zones/stock-pile";
-import { Download } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
@@ -25,9 +25,10 @@ import { PlayingCard } from "@/components/cards/playing-card";
 
 export function GameTable() {
   const session = useGameSession();
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [amountDraft, setAmountDraft] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [botCardsRevealed, setBotCardsRevealed] = useState(false);
 
   const view = useMemo(
     () => (session ? getHumanView(session) : null),
@@ -77,7 +78,7 @@ export function GameTable() {
     if (!session || !interactive) return;
     runSafe(() => {
       gameStore.applyHumanLegalAction(action, {
-        selectedCardId,
+        selectedCardIds,
         amount: resolveAmount(action),
       });
       if (
@@ -86,7 +87,7 @@ export function GameTable() {
         action.primitive === "capture" ||
         action.requiresCardSelection
       ) {
-        setSelectedCardId(null);
+        setSelectedCardIds([]);
       }
       if (action.promptAmount) {
         setAmountDraft((prev) => {
@@ -96,6 +97,14 @@ export function GameTable() {
         });
       }
     });
+  }
+
+  function toggleSelectedCard(cardId: string) {
+    setSelectedCardIds((current) =>
+      current.includes(cardId)
+        ? current.filter((id) => id !== cardId)
+        : [...current, cardId],
+    );
   }
 
   return (
@@ -130,14 +139,6 @@ export function GameTable() {
               ]}
             />
           )}
-          <a
-            href="/skills/card-table/SKILL.md"
-            download="card-table-SKILL.md"
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-700/60 px-3 text-sm text-emerald-100 hover:bg-emerald-950/50"
-          >
-            <Download className="size-3.5" aria-hidden />
-            Agent skill
-          </a>
           <WebMCPStatus />
         </div>
       </header>
@@ -164,7 +165,7 @@ export function GameTable() {
             {bots.map((bot) => (
               <div
                 key={bot.id}
-                className={`flex min-w-[9rem] flex-col items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 ${
+                className={`flex min-w-[9rem] w-full max-w-3xl flex-col items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 ${
                   bot.folded ? "opacity-40" : ""
                 } ${view.turnPlayerId === bot.id ? "ring-1 ring-amber-400/60" : ""}`}
               >
@@ -173,27 +174,47 @@ export function GameTable() {
                   {bot.chips !== null && (
                     <span className="text-amber-300/90">{bot.chips}</span>
                   )}
+                  {session.mode === "tutorial" && bot.handCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setBotCardsRevealed((v) => !v)}
+                      className="inline-flex items-center justify-center rounded p-0.5 text-emerald-400/70 hover:text-emerald-200 transition-colors"
+                      aria-label={botCardsRevealed ? "Hide bot cards" : "Show bot cards"}
+                    >
+                      {botCardsRevealed ? (
+                        <EyeOff className="size-3.5" />
+                      ) : (
+                        <Eye className="size-3.5" />
+                      )}
+                    </button>
+                  )}
                 </div>
-                <div className="flex gap-1">
-                  {bot.hand.length === 0
-                    ? Array.from({ length: bot.handCount || 0 }).map((_, i) => (
+                <div className="flex min-w-0 flex-wrap justify-center gap-1">
+                  {session.mode === "practice" || (session.mode === "tutorial" && !botCardsRevealed) ? (
+                    bot.handCount > 0 && (
+                      <div className="relative">
                         <PlayingCard
-                          key={`${bot.id}-pad-${i}`}
-                          id={`${bot.id}-pad-${i}`}
+                          id={`${bot.id}-hidden-hand`}
                           faceUp={false}
                           size="sm"
                         />
-                      ))
-                    : bot.hand.map((c) => (
-                        <PlayingCard
-                          key={c.id}
-                          id={c.id}
-                          faceUp={c.faceUp}
-                          rank={c.rank}
-                          suit={c.suit}
-                          size="sm"
-                        />
-                      ))}
+                        <span className="absolute -right-2 -top-2 rounded-full bg-emerald-400 px-1.5 py-0.5 text-xs font-semibold text-emerald-950">
+                          {bot.handCount}
+                        </span>
+                      </div>
+                    )
+                  ) : (
+                    bot.hand.map((c) => (
+                      <PlayingCard
+                        key={c.id}
+                        id={c.id}
+                        faceUp={c.faceUp}
+                        rank={c.rank}
+                        suit={c.suit}
+                        size="sm"
+                      />
+                    ))
+                  )}
                 </div>
                 {session.enabledZones.capture && (
                   <CapturePile
@@ -230,7 +251,17 @@ export function GameTable() {
               {session.enabledZones.stock && (
                 <StockPile count={view.stockCount} />
               )}
-              {session.enabledZones.play && <PlayArea cards={view.play} />}
+              {session.enabledZones.play && (
+                <PlayArea
+                  cards={view.play}
+                  layout={
+                    session.playLayout ??
+                    (view.play.length > 1 && view.play.every((card) => !card.faceUp)
+                      ? "stack"
+                      : "spread")
+                  }
+                />
+              )}
               {session.enabledZones.discard && (
                 <DiscardPile top={view.discardTop} count={view.discardCount} />
               )}
@@ -253,8 +284,8 @@ export function GameTable() {
             {session.enabledZones.hand && human && (
               <Hand
                 cards={human.hand}
-                selectedId={selectedCardId}
-                onSelect={setSelectedCardId}
+                selectedIds={selectedCardIds}
+                onSelect={toggleSelectedCard}
                 interactive={interactive}
               />
             )}

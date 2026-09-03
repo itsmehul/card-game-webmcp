@@ -1,6 +1,6 @@
 "use client";
 
-import { useWebMCP } from "usewebmcp";
+import { useWebMCP, useWebMCPResource } from "@mcp-b/react-webmcp";
 import {
   gameStore,
   listPresetIds,
@@ -13,6 +13,90 @@ import {
   type Visibility,
   type ZoneKind,
 } from "@/lib/game";
+
+const SKILL_MD = `# Card Table tools
+
+Tool schemas stay on the MCP server. This file is the playbook: **which tool, when**. Do not paste it into narration. Fetch \`skills://card-table/reference.md\` only when writing \`legalActions\` or a custom game.
+
+Seats: \`human\`, \`bot_1\`… or \`each\` / \`others\` / \`current\` / \`winner\`. Zones: \`stock\`, \`hand\`, \`play\`, \`discard\`, \`capture\`.
+
+## Discover tools
+
+Host names are **suffixed** (\`list_presets_bb8b\`, not \`list_presets\`). Looking up the bare name fails.
+
+1. \`GetDynamicTools\` on \`user-webmcp-local-relay\` with **pattern** \`list_presets\` (or \`create_game\`, \`deal\`, …).
+2. Call the matching suffixed name. If two suffixes exist, use the source with the latest \`lastSeenAt\` (\`webmcp_list_sources\`).
+3. Do not call \`GetDynamicTools\` with \`toolName\` set to the unsuffixed playbook name.
+
+## Start
+
+1. \`list_presets\` before inventing a game.
+2. Catalog → \`create_game\` with \`preset\` (name optional; the preset supplies it). Custom → omit \`preset\`; pass \`name\`, zones, \`legalActions\`, \`instructions\`.
+3. Practice: human clicks buttons; never \`apply_move\` for \`human\`. Tutorial: agent may move any seat.
+4. Mutating tools return compact agent state (in-play cards only, \`stockCount\`, last 3 narration lines). Use that result for the next decision — do **not** call \`get_game_state\` again unless the previous payload was lost.
+
+## Router
+
+| Intent | Tool |
+| --- | --- |
+| Compact state (if mutate result lost) | \`get_game_state\` |
+| Human buttons / next decision | \`set_legal_actions\` |
+| Sidebar how-to | \`set_instructions\` |
+| Student log | \`narrate\` (short) |
+| Phase label | \`set_phase\` |
+| Whose turn | \`set_turn\` (\`next\` / \`previous\` / \`same\` / \`first\` / id) or \`rotate_turn\` |
+| New deck | \`shuffle\` |
+| One-seat deal / community | \`deal\` (\`playerId: play\` for tableau) |
+| Uneven / mixed-visibility deal | \`deal_batch\` |
+| Hit / draw | \`draw\` |
+| Hand → play | \`play\` |
+| Simultaneous flip (War) | \`play_all\` |
+| Hand → discard | \`discard\` |
+| Into score pile | \`capture\` |
+| Flip visibility | \`reveal\` |
+| Ask for a rank (Go Fish) | \`transfer_cards\` (\`rank\` or \`rankFromSelection\`; empty + \`allowEmpty: false\` = go fish) |
+| Books / pairs | \`collect_sets\` (\`size\` 4 or 2) |
+| Who wins a zone | \`compare_zone\` then \`sweep_zone\` (\`to: winner\` errors on a tie) |
+| Hand total | \`score_hand\` (Blackjack: \`scoring: { aceAlt: 11, bustOver: 21 }\`) |
+| Forced bets | \`post_blinds\` |
+| Bot bet | \`chip_action\` or \`apply_move\` chip primitive |
+| Side pots | \`get_pots\` then \`award_pot\` |
+| Off-pot chips | \`award_chips\` |
+| Between streets / new hand | \`reset_round\` (\`betting\` vs \`hand\`) |
+| Generic bot primitive | \`apply_move\` (not for \`human\` in practice) |
+
+Prefer the named tool over \`apply_move\` when both exist (\`draw\`, \`play\`, \`transfer_cards\`, …).
+
+## Catalog follow-through
+
+- **Hold'em**: \`post_blinds\` → deal holes → bot \`chip_action\` → flop/turn/river via \`deal\` to \`play\` → \`reset_round\` betting → showdown \`get_pots\` / \`award_pot\`.
+- **Blackjack**: after stand/bust, \`score_hand\` dealer, hit dealer to 17, \`award_chips\`.
+- **War**: \`play_all\` → \`compare_zone\` → \`sweep_zone\`; on tie, more \`play_all\` then sweep.
+- **Go Fish**: \`transfer_cards\` from the asked bot; on error, \`draw\` and pass turn; \`collect_sets\` size 4.
+
+## Rules
+
+- Do not recreate a preset that \`list_presets\` already lists.
+- Refresh \`legalActions\` whenever the legal decision changes.
+- Keep \`narrate\` educational and short; do not dump JSON state.`;
+
+const REFERENCE_MD = `# legalActions and custom games
+
+Each control needs \`id\`, \`label\`, and a \`primitive\` (or \`chipAction\`). Optional: \`nextPhase\`, \`nextActions\`, \`rotateTurn\`, \`turnTarget\`, \`narration\`, \`count\`, \`visibility\`, \`requiresCardSelection\`, \`promptAmount\`, \`dealSpec\`, \`transfer\`, \`sweep\`, \`setSize\`, \`scoring\`, \`branches\`.
+
+Primitives: \`draw\`, \`deal_all\`, \`deal_spec\`, \`play\`, \`play_all\`, \`discard\`, \`capture\`, \`transfer\`, \`sweep\`, \`collect_sets\`, \`pass\`, \`fold\`, \`check\`, \`call\`, \`bet\`, \`raise\`, \`all_in\`.
+
+\`turnTarget\` wins over \`rotateTurn\`: \`next\`, \`previous\`, \`same\`, \`first\`, or a player id.
+
+\`branches\`: first matching \`when\` wins. Subjects: \`always\`, \`hand_count\`, \`hand_score\`, \`hand_busted\`, \`stock_count\`, \`capture_count\`, \`zone_count\`, \`chips\`. Compare with \`op\` + \`value\`.
+
+Blackjack deal_spec: human 2 hidden; dealer 1 public + 1 unknown. Hit branches: \`hand_busted\` then \`hand_score\` eq 21, else \`always\`.
+
+\`create_game\` / \`set_legal_actions\` examples:
+
+\`\`\`json
+[{"id":"hit","label":"Hit","primitive":"draw"},{"id":"stand","label":"Stand","primitive":"pass","nextPhase":"dealer_act","nextActions":[]}]
+\`\`\``;
 
 const EMPTY_SCHEMA = {
   type: "object",
@@ -166,7 +250,7 @@ const LEGAL_ACTION_ITEM = {
       type: "string",
       enum: ACTION_PRIMITIVES,
       description:
-        "See GET /skills/card-table/SKILL.md and reference.md for which primitive to use",
+        "See skills://card-table/SKILL.md and reference.md for which primitive to use",
     },
     chipAction: {
       type: "string",
@@ -221,7 +305,7 @@ const LEGAL_ACTION_ITEM = {
     dealSpec: {
       type: "array",
       description:
-        "Per-seat deal lines for deal_spec. Examples in GET /skills/card-table/reference.md",
+        "Per-seat deal lines for deal_spec. Examples in skills://card-table/reference.md",
       items: DEAL_SPEC,
     },
     transfer: TRANSFER_SPEC,
@@ -234,7 +318,7 @@ const LEGAL_ACTION_ITEM = {
     branches: {
       type: "array",
       description:
-        "Ordered conditional follow-ups; first match wins. See GET /skills/card-table/reference.md",
+        "Ordered conditional follow-ups; first match wins. See skills://card-table/reference.md",
       items: {
         type: "object",
         properties: {
@@ -284,7 +368,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "list_presets",
     description:
-      "List catalog presets (id, name, summary). Call before inventing a custom game. Playbook: GET /skills/card-table/SKILL.md. Discover by pattern search; the host suffixes this name.",
+      "List catalog presets (id, name, summary). Call before inventing a custom game. Playbook: skills://card-table/SKILL.md. Discover by pattern search; the host suffixes this name.",
     inputSchema: EMPTY_SCHEMA,
     annotations: { readOnlyHint: true },
     execute: async () => {
@@ -302,7 +386,7 @@ export function WebMCPTools() {
       "Create a session. Use preset to start a catalog game; omit preset to invent one.",
       "Catalog: pass preset (texas-holdem|blackjack|war|go-fish); name is optional.",
       "Custom: pass name, zones, legalActions, instructions. Practice needs legalActions.",
-      "Schema: GET /skills/card-table/reference.md. Discover this tool by pattern search (host suffixes the name). Resets the table.",
+      "Schema: skills://card-table/reference.md. Discover this tool by pattern search (host suffixes the name). Resets the table.",
     ].join(" "),
     inputSchema: {
       type: "object",
@@ -355,10 +439,15 @@ export function WebMCPTools() {
             capture: { type: "boolean" },
           },
         },
+        playLayout: {
+          type: "string",
+          enum: ["spread", "stack"],
+          description: "How to present shared play cards. Use stack for one face-down pile, such as Bullshit.",
+        },
         legalActions: {
           type: "array",
           description:
-            "Practice-mode human buttons. See GET /skills/card-table/reference.md",
+            "Practice-mode human buttons. See skills://card-table/reference.md",
           items: LEGAL_ACTION_ITEM,
         },
         instructions: {
@@ -393,6 +482,7 @@ export function WebMCPTools() {
                 capture?: boolean;
               }
             | undefined,
+          playLayout: args?.playLayout as "spread" | "stack" | undefined,
           legalActions:
             args?.legalActions !== undefined
               ? asLegalActions(args.legalActions)
@@ -419,7 +509,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "get_game_state",
     description:
-      "Compact agent state: seats, chips, pots, legalActions, in-play cards (not stock), stockCount, last 3 narration lines. Mutating tools return the same shape — skip this call unless that result was lost. Tool routing: GET /skills/card-table/SKILL.md",
+      "Compact agent state: seats, chips, pots, legalActions, in-play cards (not stock), stockCount, last 3 narration lines. Mutating tools return the same shape — skip this call unless that result was lost. Tool routing: skills://card-table/SKILL.md",
     inputSchema: EMPTY_SCHEMA,
     annotations: { readOnlyHint: true },
     execute: async () => {
@@ -681,7 +771,7 @@ export function WebMCPTools() {
   useWebMCP({
     name: "set_legal_actions",
     description:
-      "Replace practice-mode human buttons. Call when the legal decision changes. Field notes: GET /skills/card-table/reference.md",
+      "Replace practice-mode human buttons. Call when the legal decision changes. Field notes: skills://card-table/reference.md",
     inputSchema: {
       type: "object",
       properties: {
@@ -1142,6 +1232,38 @@ export function WebMCPTools() {
         return fail(e);
       }
     },
+  });
+
+  useWebMCPResource({
+    uri: "skills://card-table/SKILL.md",
+    name: "Card Table Skill",
+    description:
+      "Playbook for card-table WebMCP tools: which tool to call, when, and catalog follow-through recipes.",
+    mimeType: "text/markdown",
+    read: async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          text: SKILL_MD,
+        },
+      ],
+    }),
+  });
+
+  useWebMCPResource({
+    uri: "skills://card-table/reference.md",
+    name: "Card Table Reference",
+    description:
+      "legalActions schema, primitives, branches, and create_game / set_legal_actions examples for custom games.",
+    mimeType: "text/markdown",
+    read: async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          text: REFERENCE_MD,
+        },
+      ],
+    }),
   });
 
   return null;

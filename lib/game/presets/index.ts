@@ -2,6 +2,10 @@ import { createSession, narrate } from "../engine";
 import type { CreateGameOptions, GameSession, SessionMode } from "../types";
 import catalog from "./catalog.json";
 import blackjack from "./blackjack.json";
+import bullshit from "./bullshit.json";
+import crazyEights from "./crazy-eights.json";
+import euchre from "./euchre.json";
+import ginRummy from "./gin-rummy.json";
 import goFish from "./go-fish.json";
 import texasHoldem from "./texas-holdem.json";
 import war from "./war.json";
@@ -12,6 +16,10 @@ const PRESETS: Record<string, GamePreset> = {
   [blackjack.id]: blackjack as GamePreset,
   [war.id]: war as GamePreset,
   [goFish.id]: goFish as GamePreset,
+  [crazyEights.id]: crazyEights as GamePreset,
+  [euchre.id]: euchre as GamePreset,
+  [ginRummy.id]: ginRummy as GamePreset,
+  [bullshit.id]: bullshit as GamePreset,
 };
 
 const CATALOG = catalog as PresetCatalogEntry[];
@@ -70,6 +78,7 @@ export function createFromPreset(
       ...preset.enabledZones,
       ...overrides.enabledZones,
     },
+    playLayout: overrides.playLayout ?? preset.playLayout,
     phase: overrides.phase ?? preset.phase,
     legalActions: overrides.legalActions ?? preset.legalActions,
     instructions: overrides.instructions ?? preset.instructions,

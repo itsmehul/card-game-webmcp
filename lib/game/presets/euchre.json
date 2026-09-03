@@ -1,0 +1,48 @@
+{
+  "id": "euchre",
+  "name": "Euchre",
+  "summary": "Fast-paced 4-player trick-taking game played in partnerships with trump suits.",
+  "botCount": 3,
+  "jokers": false,
+  "chips": false,
+  "turnDirection": "clockwise",
+  "enabledZones": {
+    "stock": true,
+    "hand": true,
+    "play": true,
+    "discard": false,
+    "capture": true
+  },
+  "phase": "waiting_to_deal",
+  "legalActions": [
+    {
+      "id": "deal",
+      "label": "Deal hands",
+      "primitive": "deal_spec",
+      "dealSpec": [
+        { "target": "each", "count": 5, "visibility": "hidden" }
+      ],
+      "nextPhase": "bidding",
+      "nextActions": [
+        {
+          "id": "order_up",
+          "label": "Order up trump",
+          "primitive": "pass",
+          "nextPhase": "trick_play",
+          "rotateTurn": true,
+          "narration": "Trump ordered up. Prepare to play tricks!"
+        },
+        {
+          "id": "pass_bidding",
+          "label": "Pass bidding",
+          "primitive": "pass",
+          "rotateTurn": true,
+          "narration": "You passed during bidding."
+        }
+      ],
+      "narration": "5 cards dealt to 4 players (you & Bot 2 vs Bot 1 & Bot 3). Bid trump or pass."
+    }
+  ],
+  "instructions": "4 players play in 2 partnerships (you and Bot 2 are partners). After dealing 5 cards each, choose to order up trump or pass. Win 3 or more tricks to score points for your partnership.",
+  "openingNarration": "Euchre ready. Deal 5 cards to each player to start bidding!"
+}

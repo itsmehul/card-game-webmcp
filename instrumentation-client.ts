@@ -1,4 +1,4 @@
-import { initializeWebMCPPolyfill } from "@mcp-b/webmcp-polyfill";
+import { initializeWebModelContext } from "@mcp-b/global";
 
 /**
  * Some embedded browsers ignore Origin-Agent-Cluster and keep
@@ -85,7 +85,7 @@ function installPolyfillPreferentially() {
     }
   }
 
-  initializeWebMCPPolyfill({ installTestingShim: true });
+  initializeWebModelContext({ installTestingShim: true });
 }
 
 installPolyfillPreferentially();

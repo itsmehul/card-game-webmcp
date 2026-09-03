@@ -229,7 +229,7 @@ export const gameStore = {
   },
   applyHumanLegalAction(
     action: LegalAction,
-    opts?: { selectedCardId?: string | null; amount?: number },
+    opts?: { selectedCardIds?: string[]; amount?: number },
   ) {
     setSession(applyHumanLegalAction(requireSession(), action, opts));
     return session!;

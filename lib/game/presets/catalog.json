@@ -18,5 +18,25 @@
     "id": "go-fish",
     "name": "Go Fish",
     "summary": "Ask a rival for the rank you picked, go fishing when they have none, and bank books of four."
+  },
+  {
+    "id": "crazy-eights",
+    "name": "Crazy Eights",
+    "summary": "Match the top card by suit or rank, play 8s as wildcards, and be the first to clear your hand."
+  },
+  {
+    "id": "euchre",
+    "name": "Euchre",
+    "summary": "Fast-paced 4-player trick-taking game played in partnerships with trump suits."
+  },
+  {
+    "id": "gin-rummy",
+    "name": "Gin Rummy",
+    "summary": "Build melds of sets and runs, draw from stock or discard, and knock to catch your opponent."
+  },
+  {
+    "id": "bullshit",
+    "name": "Bullshit (I Doubt It)",
+    "summary": "Play cards face-down into a pile while declaring ranks. Call Bullshit if you spot a lie!"
   }
 ]

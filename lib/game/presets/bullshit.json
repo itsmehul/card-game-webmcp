@@ -1,0 +1,47 @@
+{
+  "id": "bullshit",
+  "name": "Bullshit (I Doubt It)",
+  "summary": "Play cards face-down into a pile while declaring ranks. Call Bullshit if you spot a lie!",
+  "botCount": 2,
+  "jokers": false,
+  "chips": false,
+  "turnDirection": "clockwise",
+  "enabledZones": {
+    "stock": true,
+    "hand": true,
+    "play": true,
+    "discard": false,
+    "capture": false
+  },
+  "playLayout": "stack",
+  "phase": "waiting_to_deal",
+  "legalActions": [
+    {
+      "id": "deal",
+      "label": "Deal full deck",
+      "primitive": "deal_all",
+      "visibility": "hidden",
+      "nextPhase": "your_turn",
+      "nextActions": [
+        {
+          "id": "play_bluff",
+          "label": "Play face-down",
+          "primitive": "play",
+          "requiresCardSelection": true,
+          "visibility": "unknown",
+          "rotateTurn": true,
+          "narration": "You played card(s) face-down to the stack."
+        },
+        {
+          "id": "call_bullshit",
+          "label": "Call Bullshit!",
+          "primitive": "pass",
+          "narration": "Bullshit called! Reveal the top cards on the stack."
+        }
+      ],
+      "narration": "Deck dealt evenly. Play cards face-down and state the declared rank."
+    }
+  ],
+  "instructions": "Cards are played face-down onto the center stack in sequential rank order (Aces, 2s, 3s...). Bluff when you don't have the rank! If anyone calls Bullshit, reveal the cards — a liar takes the pile, otherwise the caller takes it. First out wins.",
+  "openingNarration": "Bullshit ready. Deal the full deck and prepare your best poker face!"
+}
