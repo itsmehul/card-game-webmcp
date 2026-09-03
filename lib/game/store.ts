@@ -35,11 +35,17 @@ import {
   sweepZone,
   transfer,
 } from "./engine";
+import {
+  sendHumanEvent,
+  startGameActor,
+  syncActorSession,
+  type GameActor,
+} from "./machine";
+import type { GameMachineConfig } from "./machine/types";
 import { compareZone, findSets, scoreHand } from "./scoring";
 import {
-  createFromPreset,
   isKnownPreset,
-  startPresetSession,
+  startPresetWithActor,
 } from "./presets";
 import type {
   AwaitUserActionOptions,
@@ -62,13 +68,9 @@ import type {
 type Listener = () => void;
 
 let session: GameSession | null = null;
+let actor: GameActor | null = null;
 const listeners = new Set<Listener>();
 
-/**
- * Tutorial await registry. At most one `await_user_action` call is pending at
- * a time — the agent's turn blocks on the tool, so true concurrency is not
- * possible in normal flow; the guards below are defensive.
- */
 type PendingAwait = {
   expectActionId?: string;
   timer?: ReturnType<typeof setTimeout>;
@@ -79,19 +81,6 @@ type PendingAwait = {
 };
 let pendingAwait: PendingAwait | null = null;
 
-/**
- * Last human legal-action, kept until the tool consumer acks it.
- *
- * Two races lose the click if we only resolve a live `pendingAwait`:
- * 1. nextActions arm the next button while the agent is still doing
- *    highlight / narrate, so the click arrives with no await pending.
- * 2. The host aborts `await_user_action` (new user message, tool timeout)
- *    after the click already resolved that call — the dead consumer never
- *    sees it, and the next await hangs on Bet/Deal forever.
- *
- * `humanActionSeq > ackedSeq` means the click has not been delivered to a
- * consumer that finished successfully. A new game clears the log.
- */
 let lastHumanAction: AwaitUserActionResult | null = null;
 let humanActionSeq = 0;
 let ackedSeq = 0;
@@ -134,7 +123,6 @@ function unackedClick(
   return { ...lastHumanAction, matched };
 }
 
-/** Reject an in-flight await because the session was replaced or cleared. */
 function cancelPendingAwait(reason: string) {
   if (!pendingAwait) return;
   clearAwaitTimer(pendingAwait);
@@ -147,14 +135,54 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
+function stopActor() {
+  if (actor) {
+    actor.stop();
+    actor = null;
+  }
+}
+
 function setSession(next: GameSession | null) {
   session = next;
   emit();
 }
 
+/**
+ * Apply an engine mutation and keep the XState actor context in sync so
+ * subsequent human events see narration / chip / card updates.
+ */
+function mutateSession(updater: (s: GameSession) => GameSession): GameSession {
+  const current = requireSession();
+  const highlight = current.highlight;
+  const mutated = updater(current);
+  if (actor) {
+    const projected = syncActorSession(actor, {
+      ...mutated,
+      // Actor context stores table data; phase/controls are projected from state.
+      legalActions: [],
+    });
+    session = { ...projected, highlight: mutated.highlight ?? highlight };
+    emit();
+    return session;
+  }
+  setSession(mutated);
+  return mutated;
+}
+
 function requireSession(): GameSession {
   if (!session) throw new Error("No active game. Call create_game first.");
   return session;
+}
+
+function bootMachine(
+  machine: GameMachineConfig,
+  base: GameSession,
+): GameSession {
+  stopActor();
+  const started = startGameActor(machine, base);
+  actor = started.actor;
+  setSession(started.session);
+  return started.session;
 }
 
 export const gameStore = {
@@ -175,100 +203,97 @@ export const gameStore = {
         "create_game needs a name when inventing a custom game. Pass preset to start a catalog game.",
       );
     }
-    const next = known
-      ? createFromPreset(options.preset!, options)
-      : createSession(options);
     cancelPendingAwait("A new game started while awaiting a user action.");
     resetHumanActionLog();
-    setSession(next);
-    return next;
+
+    if (known) {
+      const started = startPresetWithActor(options.preset!, options);
+      stopActor();
+      actor = started.actor;
+      setSession(started.session);
+      return started.session;
+    }
+
+    const machine = options.machine;
+    if (!machine) {
+      throw new Error(
+        "Custom games need a machine (XState JSON). Catalog games: pass preset from list_presets.",
+      );
+    }
+    const base = createSession(options);
+    return bootMachine(machine, base);
   },
   startPreset(
     id: string,
     mode: SessionMode = "practice",
     botCount?: number,
   ) {
-    const next = startPresetSession(id, mode, botCount);
     cancelPendingAwait("A new game started while awaiting a user action.");
     resetHumanActionLog();
-    setSession(next);
-    return next;
+    const started = startPresetWithActor(id, { mode, botCount });
+    stopActor();
+    actor = started.actor;
+    setSession(started.session);
+    return started.session;
   },
   clear() {
     cancelPendingAwait("Game ended while awaiting a user action.");
     resetHumanActionLog();
+    stopActor();
     setSession(null);
   },
   shuffle() {
-    const s = requireSession();
-    setSession({
+    return mutateSession((s) => ({
       ...s,
       cards: shuffle(s.cards),
       players: s.players.map((p) => ({ ...p, folded: false })),
-      phase: "waiting_to_deal",
-      legalActions: [],
-    });
-    return session!;
+    }));
   },
   deal(playerId: string, count: number, visibility?: Visibility) {
-    setSession(deal(requireSession(), playerId, count, visibility));
-    return session!;
+    return mutateSession((s) => deal(s, playerId, count, visibility));
   },
   dealToPlay(count: number, visibility?: Visibility) {
-    setSession(dealToPlay(requireSession(), count, visibility));
-    return session!;
+    return mutateSession((s) => dealToPlay(s, count, visibility));
   },
   draw(playerId: string, count?: number, visibility?: Visibility) {
-    setSession(draw(requireSession(), playerId, count, visibility));
-    return session!;
+    return mutateSession((s) => draw(s, playerId, count, visibility));
   },
   play(playerId: string, cardIds: string[], visibility?: Visibility) {
-    setSession(play(requireSession(), playerId, cardIds, visibility));
-    return session!;
+    return mutateSession((s) => play(s, playerId, cardIds, visibility));
   },
   discard(playerId: string, cardIds: string[], visibility?: Visibility) {
-    setSession(discard(requireSession(), playerId, cardIds, visibility));
-    return session!;
+    return mutateSession((s) => discard(s, playerId, cardIds, visibility));
   },
   capture(playerId: string, cardIds: string[], visibility?: Visibility) {
-    setSession(capture(requireSession(), playerId, cardIds, visibility));
-    return session!;
+    return mutateSession((s) => capture(s, playerId, cardIds, visibility));
   },
   reveal(cardIds: string[], visibility?: Visibility) {
-    setSession(reveal(requireSession(), cardIds, visibility));
-    return session!;
+    return mutateSession((s) => reveal(s, cardIds, visibility));
   },
   rotateTurn() {
-    setSession(rotateTurn(requireSession()));
-    return session!;
+    return mutateSession((s) => rotateTurn(s));
   },
   setTurn(playerId: string) {
-    setSession(setTurn(requireSession(), playerId));
-    return session!;
+    return mutateSession((s) => setTurn(s, playerId));
   },
   moveTurn(target: SeatTarget | "next" | "previous" | "same" | "first") {
-    setSession(moveTurn(requireSession(), target));
-    return session!;
+    return mutateSession((s) => moveTurn(s, target));
   },
   dealBatch(specs: DealSpec[]) {
-    setSession(dealBatch(requireSession(), specs));
-    return session!;
+    return mutateSession((s) => dealBatch(s, specs));
   },
   transfer(spec: TransferSpec) {
-    setSession(transfer(requireSession(), spec));
-    return session!;
+    return mutateSession((s) => transfer(s, spec));
   },
   playAll(count?: number, visibility?: Visibility) {
-    setSession(playAll(requireSession(), count, visibility));
-    return session!;
+    return mutateSession((s) => playAll(s, count, visibility));
   },
   sweepZone(spec: SweepSpec) {
-    setSession(sweepZone(requireSession(), spec));
-    return session!;
+    return mutateSession((s) => sweepZone(s, spec));
   },
   collectSets(playerId: string, size?: number, toZone?: ZoneKind) {
     const result = collectSets(requireSession(), playerId, size, toZone);
-    setSession(result.session);
+    mutateSession(() => result.session);
     return { session: session!, sets: result.sets };
   },
   findSets(playerId: string, size: number) {
@@ -281,55 +306,45 @@ export const gameStore = {
     return compareZone(requireSession(), zone);
   },
   postBlinds(blinds: Array<{ playerId: string; amount: number }>) {
-    setSession(postBlinds(requireSession(), blinds));
-    return session!;
+    return mutateSession((s) => postBlinds(s, blinds));
   },
   allIn(playerId: string) {
-    setSession(allIn(requireSession(), playerId));
-    return session!;
+    return mutateSession((s) => allIn(s, playerId));
   },
   computePots() {
     return computePots(requireSession());
   },
   awardPot(winnerIds: string[], amount?: number) {
-    setSession(awardPot(requireSession(), winnerIds, amount));
-    return session!;
+    return mutateSession((s) => awardPot(s, winnerIds, amount));
   },
   awardChips(playerId: string, amount: number) {
-    setSession(awardChips(requireSession(), playerId, amount));
-    return session!;
+    return mutateSession((s) => awardChips(s, playerId, amount));
   },
   resetBettingRound() {
-    setSession(resetBettingRound(requireSession()));
-    return session!;
+    return mutateSession((s) => resetBettingRound(s));
   },
   resetHand() {
-    setSession(resetHand(requireSession()));
-    return session!;
+    return mutateSession((s) => resetHand(s));
   },
   setPhase(phase: string) {
-    setSession(setPhase(requireSession(), phase));
-    return session!;
+    return mutateSession((s) => setPhase(s, phase));
   },
   setLegalActions(actions: LegalAction[]) {
-    setSession(setLegalActions(requireSession(), actions));
-    return session!;
+    return mutateSession((s) => setLegalActions(s, actions));
   },
   applyHumanLegalAction(
     action: LegalAction,
     opts?: { selectedCardIds?: string[]; amount?: number },
   ) {
-    // The highlight is a transient guide for the next click; once the human
-    // performs an action it has served its purpose, so clear it so a stale
-    // label (e.g. "Click here to deal") doesn't bleed into the next phase.
-    const after = applyHumanLegalAction(requireSession(), action, opts);
-    setSession(after.highlight ? { ...after, highlight: null } : after);
+    if (actor && action.event) {
+      const projected = sendHumanEvent(actor, action.event, opts);
+      setSession(projected);
+    } else {
+      const after = applyHumanLegalAction(requireSession(), action, opts);
+      setSession(after.highlight ? { ...after, highlight: null } : after);
+    }
     lastHumanAction = buildActionResult(action, opts, undefined);
     humanActionSeq += 1;
-    // Settle a pending tutorial await, if any. The await resolves with the
-    // *actual* action performed; matched is false when the agent expected a
-    // different action id so it can course-correct. The click stays unacked
-    // until ackUserAction() so an aborted tool call can replay it.
     if (pendingAwait) {
       clearAwaitTimer(pendingAwait);
       const p = pendingAwait;
@@ -338,33 +353,15 @@ export const gameStore = {
     }
     return session!;
   },
-  /**
-   * Block until the human clicks a legalAction button on the table, then
-   * resolve with what they did. Tutorial-only. At most one await is pending
-   * at a time; the agent's turn blocks on the tool, so a second call can only
-   * arrive if the previous one was abandoned (the MCP client aborted the tool
-   * call before it resolved). In that case the stale await is superseded
-   * benignly — resolved with { timedOut: true } — so its dead consumer ignores
-   * the result and no unhandled rejection fires, and the new await proceeds.
-   * Resolves with { timedOut: true } after timeoutMs. Rejects if the game is
-   * cleared or replaced while waiting.
-   */
   awaitUserAction(
     opts: AwaitUserActionOptions = {},
   ): Promise<AwaitUserActionResult> {
     if (pendingAwait) {
-      // A previous await was abandoned by its caller (the MCP client aborted
-      // the tool call). Supersede it so the agent can retry cleanly instead of
-      // being permanently locked out of await_user_action.
       clearAwaitTimer(pendingAwait);
       const stale = pendingAwait;
       pendingAwait = null;
       stale.resolve({ timedOut: true });
     }
-    // Unacked click: either the nextActions gap (click before await) or a
-    // previous await that resolved then got aborted before ackUserAction.
-    // Do NOT clear session.highlight here — any highlight present now was
-    // set by the agent AFTER that click.
     const replayed = unackedClick(opts.expectActionId);
     if (replayed) return Promise.resolve(replayed);
 
@@ -395,42 +392,24 @@ export const gameStore = {
       pendingAwait = entry;
     });
   },
-  /**
-   * Mark the last delivered click as consumed. Call only after the
-   * await_user_action tool has successfully returned to a live agent turn.
-   * Skip this when the host aborted the call so the next await can replay.
-   */
   ackUserAction() {
     ackedSeq = humanActionSeq;
   },
   setMode(mode: SessionMode) {
-    setSession(setMode(requireSession(), mode));
-    return session!;
+    return mutateSession((s) => setMode(s, mode));
   },
   chipAction(playerId: string, action: ChipActionKind, amount?: number) {
-    setSession(chipAction(requireSession(), playerId, action, amount));
-    return session!;
+    return mutateSession((s) => chipAction(s, playerId, action, amount));
   },
   narrate(text: string) {
-    setSession(narrate(requireSession(), text));
-    return session!;
+    return mutateSession((s) => narrate(s, text));
   },
   setInstructions(text: string) {
-    setSession(setInstructions(requireSession(), text));
-    return session!;
+    return mutateSession((s) => setInstructions(s, text));
   },
   setHighlight(highlight: Highlight | null) {
-    const s = requireSession();
-    setSession({ ...s, highlight });
-    return session!;
+    return mutateSession((s) => ({ ...s, highlight }));
   },
-  /**
-   * Apply a move for a seat. The human seat is always driven by the human's
-   * on-screen buttons — in both tutorial and practice. Agents may move bot
-   * seats (e.g. a bot's bet or Go Fish response). In tutorial mode the agent
-   * teaches by highlighting the action and narrating what to do; it must not
-   * perform the human's action for them.
-   */
   applyMove(input: {
     playerId: string;
     primitive:
@@ -459,8 +438,6 @@ export const gameStore = {
     const s = requireSession();
     const isHuman = input.playerId === "human";
     if (input.fromAgent && (isHuman || input.primitive === "play_all")) {
-      // play_all moves every seat at once, so it inevitably performs the
-      // human's action too — simultaneous flips are human-button driven.
       throw new Error(
         "The human plays their own cards via the on-screen buttons in both tutorial and practice mode. To teach in tutorial, highlight the action (highlight) and narrate what to do (narrate) — do not move the human seat.",
       );
@@ -468,14 +445,20 @@ export const gameStore = {
 
     switch (input.primitive) {
       case "deal_all": {
-        let next = s;
-        for (const p of next.players) {
-          if (!p.folded) {
-            next = deal(next, p.id, input.count ?? 1, input.visibility ?? "hidden");
+        return mutateSession((cur) => {
+          let next = cur;
+          for (const p of next.players) {
+            if (!p.folded) {
+              next = deal(
+                next,
+                p.id,
+                input.count ?? 1,
+                input.visibility ?? "hidden",
+              );
+            }
           }
-        }
-        setSession(next);
-        return session!;
+          return next;
+        });
       }
       case "pass":
         return session!;
@@ -519,6 +502,10 @@ export const gameStore = {
   },
   getStatePayload() {
     return getOmniscientState(requireSession());
+  },
+  /** Exposed for tests / debugging. */
+  getActor(): GameActor | null {
+    return actor;
   },
 };
 

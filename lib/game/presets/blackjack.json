@@ -14,77 +14,188 @@
     "discard": true,
     "capture": false
   },
-  "phase": "waiting_for_bet",
-  "legalActions": [
-    {
-      "id": "bet",
-      "label": "Bet 10",
-      "primitive": "bet",
-      "chipAction": "bet",
-      "amount": 10,
-      "nextPhase": "waiting_to_deal",
-      "nextActions": [
-        {
-          "id": "deal",
-          "label": "Deal hands",
-          "primitive": "deal_spec",
-          "dealSpec": [
-            { "target": "human", "count": 2, "visibility": "public" },
-            { "target": "bot_1", "count": 1, "visibility": "public" },
-            { "target": "bot_1", "count": 1, "visibility": "unknown" }
-          ],
-          "nextPhase": "player_act",
-          "nextActions": [
+  "instructions": "Beat the dealer without going over 21. Number cards = face value, face cards = 10, Aces = 1 or 11. The dealer hits until 17+. Settlement (even money, blackjack 3:2, push) is automatic.",
+  "openingNarration": "Blackjack ready. Bet 10, then deal the cards.",
+  "machine": {
+    "id": "blackjack",
+    "initial": "waiting_for_bet",
+    "states": {
+      "waiting_for_bet": {
+        "meta": {
+          "controls": [
+            {
+              "id": "bet",
+              "label": "Bet 10",
+              "event": "BET",
+              "chipAction": "bet",
+              "amount": 10,
+              "primitive": "bet"
+            }
+          ]
+        },
+        "on": {
+          "BET": {
+            "target": "waiting_to_deal",
+            "actions": [
+              { "type": "chipBet", "params": { "amount": 10 } },
+              { "type": "narrate", "params": { "text": "Bet placed. Deal the cards." } }
+            ]
+          }
+        }
+      },
+      "waiting_to_deal": {
+        "meta": {
+          "controls": [
+            {
+              "id": "deal",
+              "label": "Deal hands",
+              "event": "DEAL",
+              "primitive": "deal_spec"
+            }
+          ]
+        },
+        "on": {
+          "DEAL": {
+            "target": "player_act",
+            "actions": [
+              {
+                "type": "dealSpec",
+                "params": {
+                  "dealSpec": [
+                    { "target": "human", "count": 2, "visibility": "public" },
+                    { "target": "bot_1", "count": 1, "visibility": "public" },
+                    { "target": "bot_1", "count": 1, "visibility": "unknown" }
+                  ]
+                }
+              },
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "Hands dealt. The dealer shows one card. Hit or stand."
+                }
+              }
+            ]
+          }
+        }
+      },
+      "player_act": {
+        "meta": {
+          "controls": [
             {
               "id": "hit",
               "label": "Hit",
+              "event": "HIT",
               "primitive": "draw",
-              "count": 1,
-              "visibility": "public",
-              "branches": [
-                {
-                  "when": {
-                    "subject": "hand_busted",
-                    "scoring": { "aceAlt": 11, "bustOver": 21 }
-                  },
-                  "nextPhase": "bust",
-                  "nextActions": [],
-                  "narration": "Bust! Your hand went over 21."
-                },
-                {
-                  "when": {
-                    "subject": "hand_score",
-                    "op": "eq",
-                    "value": 21,
-                    "scoring": { "aceAlt": 11, "bustOver": 21 }
-                  },
-                  "nextPhase": "dealer_act",
-                  "nextActions": [],
-                  "turnTarget": "bot_1",
-                  "narration": "21. Dealer's turn."
-                },
-                {
-                  "when": { "subject": "always" },
-                  "narration": "You hit. Hit again or stand."
-                }
-              ]
+              "count": 1
             },
             {
               "id": "stand",
               "label": "Stand",
-              "primitive": "pass",
-              "nextPhase": "dealer_act",
-              "nextActions": [],
-              "turnTarget": "bot_1",
-              "narration": "You stand. Dealer's turn."
+              "event": "STAND",
+              "primitive": "pass"
             }
-          ],
-          "narration": "Hands dealt. The dealer shows one card. Hit or stand."
+          ]
+        },
+        "on": {
+          "HIT": {
+            "target": "after_hit",
+            "actions": [
+              {
+                "type": "drawHuman",
+                "params": { "count": 1, "visibility": "public" }
+              }
+            ]
+          },
+          "STAND": {
+            "target": "dealer_act",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "You stand. Dealer's turn." }
+              },
+              { "type": "setTurn", "params": { "playerId": "bot_1" } }
+            ]
+          }
         }
-      ],
-      "narration": "Bet placed. Deal the cards."
+      },
+      "after_hit": {
+        "always": [
+          {
+            "guard": {
+              "type": "handBusted",
+              "params": { "aceAlt": 11, "bustOver": 21 }
+            },
+            "target": "bust",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "Bust! Your hand went over 21." }
+              }
+            ]
+          },
+          {
+            "guard": {
+              "type": "handScoreEq",
+              "params": { "aceAlt": 11, "bustOver": 21, "value": 21 }
+            },
+            "target": "dealer_act",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "21. Dealer's turn." }
+              },
+              { "type": "setTurn", "params": { "playerId": "bot_1" } }
+            ]
+          },
+          {
+            "target": "player_act",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "You hit. Hit again or stand." }
+              }
+            ]
+          }
+        ]
+      },
+      "bust": {
+        "entry": [
+          { "type": "settleBlackjack", "params": { "reason": "bust" } }
+        ],
+        "always": [{ "target": "hand_over" }]
+      },
+      "dealer_act": {
+        "entry": [
+          "revealDealerHole",
+          "dealerHitTo17",
+          { "type": "settleBlackjack", "params": { "reason": "compare" } }
+        ],
+        "always": [{ "target": "hand_over" }]
+      },
+      "hand_over": {
+        "meta": {
+          "controls": [
+            {
+              "id": "new_hand",
+              "label": "New hand",
+              "event": "NEW_HAND",
+              "primitive": "pass"
+            }
+          ]
+        },
+        "on": {
+          "NEW_HAND": {
+            "target": "waiting_for_bet",
+            "actions": [
+              "resetHand",
+              {
+                "type": "narrate",
+                "params": { "text": "New hand. Bet 10 to play." }
+              }
+            ]
+          }
+        }
+      }
     }
-  ],
-  "instructions": "Blackjack. Goal: beat the dealer without going over 21. Number cards = face value, face cards = 10, Aces = 1 or 11 (whichever is better). The dealer must hit until they have at least 17. Flow: 1) Bet 10. 2) Deal: player gets two face-up cards, dealer gets one face-up and one hole card. 3) Player hits or stands; bust (over 21) loses immediately. 4) Reveal the dealer's hole card, score the dealer, and draw until the dealer has 17+. 5) Settle: if player wins, call award_pot(['human']) to return the bet and award_chips('human', 10) for even-money profit (award_chips('human', 15) for a natural Blackjack). If dealer wins, call award_pot(['bot_1']). On a push, award_pot(['human']).",
-  "openingNarration": "Blackjack ready. Bet 10, then deal the cards."
+  }
 }

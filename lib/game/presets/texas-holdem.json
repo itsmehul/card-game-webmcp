@@ -14,60 +14,340 @@
     "discard": true,
     "capture": false
   },
-  "phase": "waiting_to_deal",
-  "legalActions": [
-    {
-      "id": "deal",
-      "label": "Deal hole cards",
-      "primitive": "deal_spec",
-      "dealSpec": [{ "target": "each", "count": 2, "visibility": "hidden" }],
-      "nextPhase": "preflop",
-      "nextActions": [
-        {
-          "id": "check",
-          "label": "Check",
-          "chipAction": "check",
-          "primitive": "check",
-          "rotateTurn": true,
-          "narration": "You checked."
+  "playLayout": "spread",
+  "instructions": "Post blinds, deal holes, then check/call/raise/fold. Bots always check or call. Streets (flop, turn, river) and showdown payouts are automatic.",
+  "openingNarration": "Texas Hold'em ready. Deal the hand to post blinds and get hole cards.",
+  "machine": {
+    "id": "texas-holdem",
+    "initial": "waiting_to_deal",
+    "states": {
+      "waiting_to_deal": {
+        "meta": {
+          "controls": [
+            {
+              "id": "deal",
+              "label": "Deal hand",
+              "event": "DEAL",
+              "primitive": "deal_spec"
+            }
+          ]
         },
-        {
-          "id": "call",
-          "label": "Call",
-          "chipAction": "call",
-          "primitive": "call",
-          "rotateTurn": true,
-          "narration": "You called."
-        },
-        {
-          "id": "raise",
-          "label": "Raise",
-          "chipAction": "raise",
-          "primitive": "raise",
-          "promptAmount": true,
-          "minAmount": 50,
-          "rotateTurn": true,
-          "narration": "You raised."
-        },
-        {
-          "id": "all_in",
-          "label": "All in",
-          "primitive": "all_in",
-          "rotateTurn": true,
-          "narration": "You are all in."
-        },
-        {
-          "id": "fold",
-          "label": "Fold",
-          "chipAction": "fold",
-          "primitive": "fold",
-          "rotateTurn": true,
-          "narration": "You folded."
+        "on": {
+          "DEAL": {
+            "target": "preflop",
+            "actions": [
+              {
+                "type": "postBlindsDefault",
+                "params": { "small": 10, "big": 20 }
+              },
+              {
+                "type": "dealSpec",
+                "params": {
+                  "dealSpec": [
+                    { "target": "each", "count": 2, "visibility": "hidden" }
+                  ]
+                }
+              },
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "Blinds posted and hole cards dealt. Your action."
+                }
+              }
+            ]
+          }
         }
-      ],
-      "narration": "Hole cards dealt. Your action."
+      },
+      "preflop": {
+        "meta": {
+          "controls": [
+            {
+              "id": "check",
+              "label": "Check",
+              "event": "CHECK",
+              "chipAction": "check",
+              "primitive": "check"
+            },
+            {
+              "id": "call",
+              "label": "Call",
+              "event": "CALL",
+              "chipAction": "call",
+              "primitive": "call"
+            },
+            {
+              "id": "raise",
+              "label": "Raise",
+              "event": "RAISE",
+              "chipAction": "raise",
+              "primitive": "raise",
+              "promptAmount": true,
+              "minAmount": 20
+            },
+            {
+              "id": "all_in",
+              "label": "All in",
+              "event": "ALL_IN",
+              "primitive": "all_in"
+            },
+            {
+              "id": "fold",
+              "label": "Fold",
+              "event": "FOLD",
+              "chipAction": "fold",
+              "primitive": "fold"
+            }
+          ]
+        },
+        "on": {
+          "CHECK": {
+            "target": "to_flop",
+            "actions": ["chipCheck", "holdemBotsAct"]
+          },
+          "CALL": {
+            "target": "to_flop",
+            "actions": ["chipCall", "holdemBotsAct"]
+          },
+          "RAISE": {
+            "target": "to_flop",
+            "actions": ["chipRaise", "holdemBotsAct"]
+          },
+          "ALL_IN": {
+            "target": "to_flop",
+            "actions": ["chipAllIn", "holdemBotsAct"]
+          },
+          "FOLD": {
+            "target": "folded_out",
+            "actions": ["chipFold", "awardToFoldWinner"]
+          }
+        }
+      },
+      "to_flop": {
+        "always": [
+          {
+            "guard": { "type": "onlyOneActive" },
+            "target": "hand_over"
+          },
+          {
+            "target": "flop",
+            "actions": [
+              "resetBetting",
+              {
+                "type": "dealToPlay",
+                "params": { "count": 3, "visibility": "public" }
+              },
+              {
+                "type": "narrate",
+                "params": { "text": "Flop dealt. Your action." }
+              }
+            ]
+          }
+        ]
+      },
+      "flop": {
+        "meta": {
+          "controls": [
+            {
+              "id": "check",
+              "label": "Check",
+              "event": "CHECK",
+              "chipAction": "check",
+              "primitive": "check"
+            },
+            {
+              "id": "bet",
+              "label": "Bet",
+              "event": "BET",
+              "chipAction": "bet",
+              "primitive": "bet",
+              "promptAmount": true,
+              "minAmount": 20
+            },
+            {
+              "id": "fold",
+              "label": "Fold",
+              "event": "FOLD",
+              "chipAction": "fold",
+              "primitive": "fold"
+            }
+          ]
+        },
+        "on": {
+          "CHECK": {
+            "target": "to_turn",
+            "actions": ["chipCheck", "holdemBotsAct"]
+          },
+          "BET": {
+            "target": "to_turn",
+            "actions": ["chipBet", "holdemBotsAct"]
+          },
+          "FOLD": {
+            "target": "folded_out",
+            "actions": ["chipFold", "awardToFoldWinner"]
+          }
+        }
+      },
+      "to_turn": {
+        "always": [
+          {
+            "guard": { "type": "onlyOneActive" },
+            "target": "hand_over"
+          },
+          {
+            "target": "turn",
+            "actions": [
+              "resetBetting",
+              {
+                "type": "dealToPlay",
+                "params": { "count": 1, "visibility": "public" }
+              },
+              {
+                "type": "narrate",
+                "params": { "text": "Turn dealt. Your action." }
+              }
+            ]
+          }
+        ]
+      },
+      "turn": {
+        "meta": {
+          "controls": [
+            {
+              "id": "check",
+              "label": "Check",
+              "event": "CHECK",
+              "chipAction": "check",
+              "primitive": "check"
+            },
+            {
+              "id": "bet",
+              "label": "Bet",
+              "event": "BET",
+              "chipAction": "bet",
+              "primitive": "bet",
+              "promptAmount": true,
+              "minAmount": 20
+            },
+            {
+              "id": "fold",
+              "label": "Fold",
+              "event": "FOLD",
+              "chipAction": "fold",
+              "primitive": "fold"
+            }
+          ]
+        },
+        "on": {
+          "CHECK": {
+            "target": "to_river",
+            "actions": ["chipCheck", "holdemBotsAct"]
+          },
+          "BET": {
+            "target": "to_river",
+            "actions": ["chipBet", "holdemBotsAct"]
+          },
+          "FOLD": {
+            "target": "folded_out",
+            "actions": ["chipFold", "awardToFoldWinner"]
+          }
+        }
+      },
+      "to_river": {
+        "always": [
+          {
+            "guard": { "type": "onlyOneActive" },
+            "target": "hand_over"
+          },
+          {
+            "target": "river",
+            "actions": [
+              "resetBetting",
+              {
+                "type": "dealToPlay",
+                "params": { "count": 1, "visibility": "public" }
+              },
+              {
+                "type": "narrate",
+                "params": { "text": "River dealt. Your action." }
+              }
+            ]
+          }
+        ]
+      },
+      "river": {
+        "meta": {
+          "controls": [
+            {
+              "id": "check",
+              "label": "Check",
+              "event": "CHECK",
+              "chipAction": "check",
+              "primitive": "check"
+            },
+            {
+              "id": "bet",
+              "label": "Bet",
+              "event": "BET",
+              "chipAction": "bet",
+              "primitive": "bet",
+              "promptAmount": true,
+              "minAmount": 20
+            },
+            {
+              "id": "fold",
+              "label": "Fold",
+              "event": "FOLD",
+              "chipAction": "fold",
+              "primitive": "fold"
+            }
+          ]
+        },
+        "on": {
+          "CHECK": {
+            "target": "showdown",
+            "actions": ["chipCheck", "holdemBotsAct"]
+          },
+          "BET": {
+            "target": "showdown",
+            "actions": ["chipBet", "holdemBotsAct"]
+          },
+          "FOLD": {
+            "target": "folded_out",
+            "actions": ["chipFold", "awardToFoldWinner"]
+          }
+        }
+      },
+      "showdown": {
+        "entry": ["holdemShowdown"],
+        "always": [{ "target": "hand_over" }]
+      },
+      "folded_out": {
+        "always": [{ "target": "hand_over" }]
+      },
+      "hand_over": {
+        "meta": {
+          "controls": [
+            {
+              "id": "new_hand",
+              "label": "New hand",
+              "event": "NEW_HAND",
+              "primitive": "pass"
+            }
+          ]
+        },
+        "on": {
+          "NEW_HAND": {
+            "target": "waiting_to_deal",
+            "actions": [
+              "resetHand",
+              {
+                "type": "narrate",
+                "params": { "text": "New hand. Deal when ready." }
+              }
+            ]
+          }
+        }
+      }
     }
-  ],
-  "instructions": "Ask the agent to post blinds, then deal hole cards. Check, call, raise, go all in, or fold. Between streets the agent deals the flop, turn, and river to the play area and resets the betting round; at showdown it reads get_pots for main and side pots and pays with award_pot.",
-  "openingNarration": "Texas Hold'em ready. Ask the agent to post blinds, then deal hole cards."
+  }
 }

@@ -1,4 +1,6 @@
 import { createSession, narrate } from "../engine";
+import { startGameActor, type GameActor } from "../machine";
+import type { GameMachineConfig } from "../machine/types";
 import type { CreateGameOptions, GameSession, SessionMode } from "../types";
 import catalog from "./catalog.json";
 import blackjack from "./blackjack.json";
@@ -51,9 +53,13 @@ export function isKnownPreset(id: string): boolean {
   return id in PRESETS;
 }
 
+export function getPresetMachine(id: string): GameMachineConfig | null {
+  return getPreset(id)?.machine ?? null;
+}
+
 /**
- * Build a session from a catalog preset. Caller overrides (mode, botCount, etc.)
- * win over JSON defaults. name always comes from the preset unless overridden.
+ * Build a session from a catalog preset (without starting the actor).
+ * Caller overrides win over JSON defaults.
  */
 export function createFromPreset(
   id: string,
@@ -79,15 +85,31 @@ export function createFromPreset(
       ...overrides.enabledZones,
     },
     playLayout: overrides.playLayout ?? preset.playLayout,
-    phase: overrides.phase ?? preset.phase,
-    legalActions: overrides.legalActions ?? preset.legalActions,
+    phase: overrides.phase ?? preset.machine.initial,
+    legalActions: overrides.legalActions ?? [],
     instructions: overrides.instructions ?? preset.instructions,
+    machine: overrides.machine ?? preset.machine,
   });
 
   if (preset.openingNarration) {
     return narrate(session, preset.openingNarration);
   }
   return session;
+}
+
+/** Start preset session + XState actor; returns projected session. */
+export function startPresetWithActor(
+  id: string,
+  overrides: Partial<CreateGameOptions> = {},
+): { session: GameSession; actor: GameActor; machine: GameMachineConfig } {
+  const preset = getPreset(id);
+  if (!preset) {
+    throw new Error(`Unknown preset "${id}"`);
+  }
+  const machine = (overrides.machine ?? preset.machine) as GameMachineConfig;
+  const base = createFromPreset(id, overrides);
+  const { actor, session } = startGameActor(machine, base);
+  return { session, actor, machine };
 }
 
 /** Convenience for landing / store: start a preset in a given mode. */

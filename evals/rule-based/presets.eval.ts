@@ -3,10 +3,10 @@
  *
  * These evals verify that every preset in the catalog:
  *  - Loads without error
- *  - Produces a valid session
- *  - Has required fields (name, instructions, legalActions)
+ *  - Has an XState machine
+ *  - Produces a valid session via the actor
+ *  - Has required fields (name, instructions, initial controls)
  *  - Configures zones correctly for its game type
- *  - Has a sensible initial phase
  */
 
 import { describe, it, expect } from "vitest";
@@ -16,6 +16,7 @@ import {
   getPreset,
   isKnownPreset,
   createFromPreset,
+  startPresetWithActor,
 } from "@/lib/game/presets";
 import { pass, fail, runEvals, type EvalResult } from "../helpers";
 
@@ -36,7 +37,6 @@ function evalPresetCatalog(): EvalResult[] {
       : fail("catalog_ids_match_entries", `${ids.length} ids vs ${presets.length} entries`),
   );
 
-  // Every catalog entry has required fields
   for (const entry of presets) {
     results.push(
       entry.id && entry.name && entry.summary
@@ -45,7 +45,6 @@ function evalPresetCatalog(): EvalResult[] {
     );
   }
 
-  // No duplicate IDs
   const uniqueIds = new Set(ids);
   results.push(
     uniqueIds.size === ids.length
@@ -66,10 +65,17 @@ function evalPresetSession(presetId: string): EvalResult[] {
 
   results.push(pass(`preset_${presetId}_exists`));
 
-  // Can create a session
+  results.push(
+    preset.machine?.initial && preset.machine?.states
+      ? pass(`preset_${presetId}_has_machine`)
+      : fail(`preset_${presetId}_has_machine`, "Missing machine.initial/states"),
+  );
+
   let session;
   try {
-    session = createFromPreset(presetId);
+    const started = startPresetWithActor(presetId);
+    session = started.session;
+    started.actor.stop();
     results.push(pass(`preset_${presetId}_creates_session`));
   } catch (e) {
     return [
@@ -78,37 +84,33 @@ function evalPresetSession(presetId: string): EvalResult[] {
     ];
   }
 
-  // Has a name
   results.push(
     session.name.length > 0
       ? pass(`preset_${presetId}_has_name`)
       : fail(`preset_${presetId}_has_name`, "Empty name"),
   );
 
-  // Has instructions
   results.push(
     (session.instructions?.length ?? 0) > 0
       ? pass(`preset_${presetId}_has_instructions`)
       : fail(`preset_${presetId}_has_instructions`, "No instructions provided"),
   );
 
-  // Has initial legal actions or is in waiting phase
-  const hasActions = session.legalActions.length > 0;
-  const isWaiting = session.phase === "waiting_to_deal";
   results.push(
-    hasActions || isWaiting
+    session.legalActions.length > 0
       ? pass(`preset_${presetId}_actionable`)
-      : fail(`preset_${presetId}_actionable`, "No legal actions and not in waiting phase"),
+      : fail(
+          `preset_${presetId}_actionable`,
+          `No controls projected from machine (phase=${session.phase})`,
+        ),
   );
 
-  // At least 2 players
   results.push(
     session.players.length >= 2
       ? pass(`preset_${presetId}_min_players`)
       : fail(`preset_${presetId}_min_players`, `Only ${session.players.length} players`),
   );
 
-  // Human player exists
   results.push(
     session.players.some((p) => p.id === "human")
       ? pass(`preset_${presetId}_has_human`)
@@ -117,10 +119,6 @@ function evalPresetSession(presetId: string): EvalResult[] {
 
   return results;
 }
-
-// ---------------------------------------------------------------------------
-// Eval suites
-// ---------------------------------------------------------------------------
 
 describe("Rule-based evals: Preset catalog", () => {
   it("catalog is valid", () => {

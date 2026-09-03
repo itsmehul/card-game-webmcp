@@ -13,44 +13,153 @@
     "discard": true,
     "capture": false
   },
-  "phase": "waiting_to_deal",
-  "legalActions": [
-    {
-      "id": "deal",
-      "label": "Deal hands",
-      "primitive": "deal_spec",
-      "dealSpec": [
-        { "target": "each", "count": 5, "visibility": "hidden" }
-      ],
-      "nextPhase": "your_turn",
-      "nextActions": [
-        {
-          "id": "play_card",
-          "label": "Play matching card",
-          "primitive": "discard",
-          "requiresCardSelection": true,
-          "rotateTurn": true,
-          "narration": "You played a card to the discard pile."
+  "instructions": "Match the top discard by rank or suit. 8s are wild. Draw if you cannot play. First to empty their hand wins. Bots play automatically after you.",
+  "openingNarration": "Crazy Eights ready. Deal hands to begin matching suits and ranks!",
+  "machine": {
+    "id": "crazy-eights",
+    "initial": "waiting_to_deal",
+    "states": {
+      "waiting_to_deal": {
+        "meta": {
+          "controls": [
+            {
+              "id": "deal",
+              "label": "Deal hands",
+              "event": "DEAL",
+              "primitive": "deal_spec"
+            }
+          ]
         },
-        {
-          "id": "draw_card",
-          "label": "Draw card",
-          "primitive": "draw",
-          "count": 1,
-          "visibility": "hidden",
-          "narration": "You drew a card from the stock."
-        },
-        {
-          "id": "pass",
-          "label": "Pass turn",
-          "primitive": "pass",
-          "rotateTurn": true,
-          "narration": "You passed your turn."
+        "on": {
+          "DEAL": {
+            "target": "your_turn",
+            "actions": [
+              {
+                "type": "dealSpec",
+                "params": {
+                  "dealSpec": [
+                    { "target": "each", "count": 5, "visibility": "hidden" }
+                  ]
+                }
+              },
+              "dealStarterDiscard",
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "Five cards each. Match suit, rank, or play an 8."
+                }
+              },
+              { "type": "setTurn", "params": { "playerId": "human" } }
+            ]
+          }
         }
-      ],
-      "narration": "Five cards dealt each. Discard a card matching suit or rank, or an 8 as wild."
+      },
+      "your_turn": {
+        "meta": {
+          "controls": [
+            {
+              "id": "play_card",
+              "label": "Play matching card",
+              "event": "PLAY",
+              "primitive": "discard",
+              "requiresCardSelection": true
+            },
+            {
+              "id": "draw_card",
+              "label": "Draw card",
+              "event": "DRAW",
+              "primitive": "draw",
+              "count": 1
+            },
+            {
+              "id": "pass",
+              "label": "Pass turn",
+              "event": "PASS",
+              "primitive": "pass"
+            }
+          ]
+        },
+        "on": {
+          "PLAY": {
+            "target": "after_human_play",
+            "actions": [
+              {
+                "type": "discardHuman",
+                "params": { "requireCrazyEightMatch": true }
+              },
+              {
+                "type": "narrate",
+                "params": { "text": "You played a card." }
+              }
+            ]
+          },
+          "DRAW": {
+            "target": "your_turn",
+            "actions": [
+              {
+                "type": "drawHuman",
+                "params": { "count": 1, "visibility": "hidden" }
+              },
+              {
+                "type": "narrate",
+                "params": { "text": "You drew a card." }
+              }
+            ]
+          },
+          "PASS": {
+            "target": "bots_play",
+            "actions": [
+              "rotateTurn",
+              {
+                "type": "narrate",
+                "params": { "text": "You passed. Bots play…" }
+              }
+            ]
+          }
+        }
+      },
+      "after_human_play": {
+        "always": [
+          {
+            "guard": { "type": "humanHandEmpty" },
+            "target": "you_win",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "You cleared your hand — you win!" }
+              }
+            ]
+          },
+          {
+            "target": "bots_play",
+            "actions": ["rotateTurn"]
+          }
+        ]
+      },
+      "bots_play": {
+        "entry": ["botCrazyEightsTurn"],
+        "always": [
+          {
+            "guard": { "type": "humanHandEmpty" },
+            "target": "you_win"
+          },
+          {
+            "guard": { "type": "isHumanTurn" },
+            "target": "your_turn",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "Your turn." }
+              }
+            ]
+          },
+          { "target": "your_turn" }
+        ]
+      },
+      "you_win": {
+        "type": "final",
+        "meta": { "controls": [] }
+      }
     }
-  ],
-  "instructions": "Match the top discard card by rank or suit. 8s can be played anytime as wildcards. If you have no legal play, draw from the stock or pass your turn. The first player to shed all cards wins.",
-  "openingNarration": "Crazy Eights ready. Deal hands to begin matching suits and ranks!"
+  }
 }

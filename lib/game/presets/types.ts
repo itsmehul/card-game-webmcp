@@ -5,6 +5,7 @@ import type {
   SessionMode,
   TurnDirection,
 } from "../types";
+import type { GameMachineConfig } from "../machine/types";
 
 /** Landing-catalog entry (lightweight). */
 export interface PresetCatalogEntry {
@@ -14,8 +15,8 @@ export interface PresetCatalogEntry {
 }
 
 /**
- * Full JSON preset — serializable CreateGameOptions plus landing fields
- * and an optional opening narration line.
+ * Full JSON preset — table setup plus an XState machine that owns
+ * phase flow, legal controls, bots, and settlement.
  */
 export interface GamePreset extends PresetCatalogEntry {
   botCount?: number;
@@ -25,8 +26,12 @@ export interface GamePreset extends PresetCatalogEntry {
   turnDirection?: TurnDirection;
   enabledZones?: Partial<EnabledZones>;
   playLayout?: PlayLayout;
+  /** @deprecated Prefer machine.initial / meta — kept for overrides */
   phase?: string;
+  /** @deprecated Prefer machine meta.controls */
   legalActions?: LegalAction[];
+  /** XState machine config (required for catalog games). */
+  machine: GameMachineConfig;
   instructions?: string;
   openingNarration?: string;
   /** Default mode when started from the landing without override */

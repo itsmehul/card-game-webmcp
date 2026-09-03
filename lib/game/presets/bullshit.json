@@ -14,34 +14,120 @@
     "capture": false
   },
   "playLayout": "stack",
-  "phase": "waiting_to_deal",
-  "legalActions": [
-    {
-      "id": "deal",
-      "label": "Deal full deck",
-      "primitive": "deal_all",
-      "visibility": "hidden",
-      "nextPhase": "your_turn",
-      "nextActions": [
-        {
-          "id": "play_bluff",
-          "label": "Play face-down",
-          "primitive": "play",
-          "requiresCardSelection": true,
-          "visibility": "unknown",
-          "rotateTurn": true,
-          "narration": "You played card(s) face-down to the stack."
+  "instructions": "Play cards face-down onto the center stack. Call Bullshit to challenge the last play — revealed cards go to the liar (or to you if they were honest). First empty hand wins. Bots play automatically.",
+  "openingNarration": "Bullshit ready. Deal the full deck and prepare your best poker face!",
+  "machine": {
+    "id": "bullshit",
+    "initial": "waiting_to_deal",
+    "states": {
+      "waiting_to_deal": {
+        "meta": {
+          "controls": [
+            {
+              "id": "deal",
+              "label": "Deal full deck",
+              "event": "DEAL",
+              "primitive": "deal_all"
+            }
+          ]
         },
-        {
-          "id": "call_bullshit",
-          "label": "Call Bullshit!",
-          "primitive": "pass",
-          "narration": "Bullshit called! Reveal the top cards on the stack."
+        "on": {
+          "DEAL": {
+            "target": "your_turn",
+            "actions": [
+              {
+                "type": "dealAll",
+                "params": { "all": true, "visibility": "hidden" }
+              },
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "Deck dealt. Play face-down or call Bullshit on the last play."
+                }
+              },
+              { "type": "setTurn", "params": { "playerId": "human" } }
+            ]
+          }
         }
-      ],
-      "narration": "Deck dealt evenly. Play cards face-down and state the declared rank."
+      },
+      "your_turn": {
+        "meta": {
+          "controls": [
+            {
+              "id": "play_bluff",
+              "label": "Play face-down",
+              "event": "PLAY",
+              "primitive": "play",
+              "requiresCardSelection": true
+            },
+            {
+              "id": "call_bullshit",
+              "label": "Call Bullshit!",
+              "event": "CALL",
+              "primitive": "pass"
+            }
+          ]
+        },
+        "on": {
+          "PLAY": {
+            "target": "bots_play",
+            "actions": [
+              {
+                "type": "playHuman",
+                "params": { "visibility": "unknown" }
+              },
+              "rotateTurn",
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "You played face-down. Bots play…"
+                }
+              }
+            ]
+          },
+          "CALL": {
+            "target": "your_turn",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "Bullshit called — check the play pile (simplified: continue playing)."
+                }
+              }
+            ]
+          }
+        }
+      },
+      "bots_play": {
+        "entry": ["botBullshitPlay"],
+        "always": [
+          {
+            "guard": { "type": "humanHandEmpty" },
+            "target": "you_win",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "You emptied your hand — you win!" }
+              }
+            ]
+          },
+          {
+            "guard": { "type": "isHumanTurn" },
+            "target": "your_turn",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "Your turn." }
+              }
+            ]
+          },
+          { "target": "your_turn" }
+        ]
+      },
+      "you_win": {
+        "type": "final",
+        "meta": { "controls": [] }
+      }
     }
-  ],
-  "instructions": "Cards are played face-down onto the center stack in sequential rank order (Aces, 2s, 3s...). Bluff when you don't have the rank! If anyone calls Bullshit, reveal the cards — a liar takes the pile, otherwise the caller takes it. First out wins.",
-  "openingNarration": "Bullshit ready. Deal the full deck and prepare your best poker face!"
+  }
 }

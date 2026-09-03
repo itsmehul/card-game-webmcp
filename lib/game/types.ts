@@ -167,6 +167,12 @@ export interface Player {
 export interface LegalAction {
   id: string;
   label: string;
+  /**
+   * XState event type fired when the human clicks this control.
+   * When set, the store sends the event to the game machine instead of
+   * running applyHumanLegalAction primitives.
+   */
+  event?: string;
   /** Optional chip action kind when this maps to betting */
   chipAction?: ChipActionKind;
   /** Fixed chip/card amount when not prompting the human */
@@ -303,11 +309,15 @@ export interface CreateGameOptions {
   /** Catalog preset id (e.g. texas-holdem, blackjack). Omit for a custom game. */
   preset?: string;
   /**
-   * Initial human controls for practice mode. Required for non-preset
-   * games when the human must act — define buttons matching the game's
-   * first decision point (Hit/Stand, Deal, Fold/Check/Bet, etc.).
+   * Initial human controls for practice mode (legacy). Prefer `machine`
+   * so phase flow and rewards are deterministic.
    */
   legalActions?: LegalAction[];
+  /**
+   * XState machine config (JSON-serializable). Required for custom games.
+   * Catalog presets supply this via their JSON files.
+   */
+  machine?: import("./machine/types").GameMachineConfig;
   /** Starting phase label (default waiting_to_deal) */
   phase?: string;
   /** Student-facing how-to; shown in the instructions sidebar */

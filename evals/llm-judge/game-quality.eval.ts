@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { listPresetIds, createFromPreset, getPreset } from "@/lib/game/presets";
+import { listPresetIds, createFromPreset, getPreset, startPresetWithActor } from "@/lib/game/presets";
 import { narrate } from "@/lib/game/engine";
 import type { GameSession, LegalAction } from "@/lib/game/types";
 
@@ -209,8 +209,9 @@ describe("LLM-as-judge evals: Instruction clarity", () => {
 describe("LLM-as-judge evals: Action label quality", () => {
   for (const id of listPresetIds()) {
     it(`${id} has good action labels`, () => {
-      const session = createFromPreset(id);
+      const { session, actor } = startPresetWithActor(id);
       const result = judgeActionLabels(session.legalActions);
+      actor.stop();
       expect(result.status).toBe("PASS");
       if (result.status === "FAIL") {
         console.log(`  ⚠ ${id}: ${result.rationale} (score: ${result.score}/5)`);

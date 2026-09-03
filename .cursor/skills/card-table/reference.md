@@ -2,20 +2,66 @@
 name: card-table-reference
 ---
 
-# legalActions and custom games
+# XState machine JSON for custom games
 
-Each control needs `id`, `label`, and a `primitive` (or `chipAction`). Optional: `nextPhase`, `nextActions`, `rotateTurn`, `turnTarget`, `narration`, `count`, `visibility`, `requiresCardSelection`, `promptAmount`, `dealSpec`, `transfer`, `sweep`, `setSize`, `scoring`, `branches`.
+Pass a `machine` object to `create_game` (required when inventing a game). Catalog presets already ship machines.
 
-Primitives: `draw`, `deal_all`, `deal_spec`, `play`, `play_all`, `discard`, `capture`, `transfer`, `sweep`, `collect_sets`, `pass`, `fold`, `check`, `call`, `bet`, `raise`, `all_in`.
-
-`turnTarget` wins over `rotateTurn`: `next`, `previous`, `same`, `first`, or a player id.
-
-`branches`: first matching `when` wins. Subjects: `always`, `hand_count`, `hand_score`, `hand_busted`, `stock_count`, `capture_count`, `zone_count`, `chips`. Compare with `op` + `value`.
-
-Blackjack deal_spec: human 2 hidden; dealer 1 public + 1 unknown. Hit branches: `hand_busted` then `hand_score` eq 21, else `always`.
-
-`create_game` / `set_legal_actions` examples:
+## Shape
 
 ```json
-[{"id":"hit","label":"Hit","primitive":"draw"},{"id":"stand","label":"Stand","primitive":"pass","nextPhase":"dealer_act","nextActions":[]}]
+{
+  "id": "my-game",
+  "initial": "waiting_to_deal",
+  "states": {
+    "waiting_to_deal": {
+      "meta": {
+        "controls": [
+          { "id": "deal", "label": "Deal", "event": "DEAL", "primitive": "deal_spec" }
+        ]
+      },
+      "on": {
+        "DEAL": {
+          "target": "your_turn",
+          "actions": [
+            { "type": "dealSpec", "params": { "dealSpec": [{ "target": "each", "count": 5, "visibility": "hidden" }] } },
+            { "type": "narrate", "params": { "text": "Dealt." } }
+          ]
+        }
+      }
+    },
+    "your_turn": {
+      "meta": {
+        "controls": [
+          { "id": "hit", "label": "Hit", "event": "HIT", "primitive": "draw" }
+        ]
+      },
+      "on": {
+        "HIT": { "target": "after_hit", "actions": ["drawHuman"] }
+      }
+    },
+    "after_hit": {
+      "always": [
+        { "guard": { "type": "handBusted", "params": { "bustOver": 21 } }, "target": "done" },
+        { "target": "your_turn" }
+      ]
+    },
+    "done": { "type": "final", "meta": { "controls": [] } }
+  }
+}
 ```
+
+## Controls (`meta.controls`)
+
+Each control needs `id`, `label`, `event`. Optional: `primitive`, `chipAction`, `amount`, `promptAmount`, `minAmount`, `maxAmount`, `requiresCardSelection`, `count`, `setSize`.
+
+Human clicks send `{ type: event, selectedCardIds?, amount? }` to the machine.
+
+## Named actions (registry)
+
+`narrate`, `dealSpec`, `dealAll`, `dealToPlay`, `drawHuman`, `drawSeat`, `playHuman`, `discardHuman`, `playAll`, `transferAsk`, `sweepPlayToWinner`, `collectBooksHuman`, `chipBet` / `chipCall` / `chipCheck` / `chipRaise` / `chipFold` / `chipAllIn`, `postBlindsDefault`, `resetBetting`, `resetHand`, `rotateTurn`, `setTurn`, `revealDealerHole`, `dealerHitTo17`, `settleBlackjack`, `resolveWarIfDecisive`, `holdemBotsAct`, `holdemShowdown`, `awardToFoldWinner`, `botsUntilHuman`, `botCrazyEightsTurn`, `dealStarterDiscard`, `botSimplePlayOrDraw`, `botBullshitPlay`, `euchreBotsPlayTrick`, `sweepTrickToWinner`.
+
+## Named guards
+
+`handBusted`, `handScoreEq`, `handScoreGte`, `zoneCountEq`, `stockEmpty`, `warIsTie`, `warHasWinner`, `playEmpty`, `humanHandEmpty`, `askTargetHasRank`, `isHumanTurn`, `isBotTurn`, `onlyOneActive`, `boardCountEq`, `humanHasBooks`, `condition`.
+
+Put settlement and phase changes in the machine — do not ask the LLM to call `award_*` or `set_phase`.

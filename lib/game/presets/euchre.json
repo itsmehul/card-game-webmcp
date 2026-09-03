@@ -13,36 +13,170 @@
     "discard": false,
     "capture": true
   },
-  "phase": "waiting_to_deal",
-  "legalActions": [
-    {
-      "id": "deal",
-      "label": "Deal hands",
-      "primitive": "deal_spec",
-      "dealSpec": [
-        { "target": "each", "count": 5, "visibility": "hidden" }
-      ],
-      "nextPhase": "bidding",
-      "nextActions": [
-        {
-          "id": "order_up",
-          "label": "Order up trump",
-          "primitive": "pass",
-          "nextPhase": "trick_play",
-          "rotateTurn": true,
-          "narration": "Trump ordered up. Prepare to play tricks!"
+  "instructions": "You partner with Bot 2 against Bot 1 & Bot 3. Order up trump or pass, then play tricks. Highest card in the play area wins the trick (simplified trump — high card wins).",
+  "openingNarration": "Euchre ready. Deal 5 cards to each player to start bidding!",
+  "machine": {
+    "id": "euchre",
+    "initial": "waiting_to_deal",
+    "states": {
+      "waiting_to_deal": {
+        "meta": {
+          "controls": [
+            {
+              "id": "deal",
+              "label": "Deal hands",
+              "event": "DEAL",
+              "primitive": "deal_spec"
+            }
+          ]
         },
-        {
-          "id": "pass_bidding",
-          "label": "Pass bidding",
-          "primitive": "pass",
-          "rotateTurn": true,
-          "narration": "You passed during bidding."
+        "on": {
+          "DEAL": {
+            "target": "bidding",
+            "actions": [
+              {
+                "type": "dealSpec",
+                "params": {
+                  "dealSpec": [
+                    { "target": "each", "count": 5, "visibility": "hidden" }
+                  ]
+                }
+              },
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "5 cards each. Order up trump or pass."
+                }
+              },
+              { "type": "setTurn", "params": { "playerId": "human" } }
+            ]
+          }
         }
-      ],
-      "narration": "5 cards dealt to 4 players (you & Bot 2 vs Bot 1 & Bot 3). Bid trump or pass."
+      },
+      "bidding": {
+        "meta": {
+          "controls": [
+            {
+              "id": "order_up",
+              "label": "Order up trump",
+              "event": "ORDER_UP",
+              "primitive": "pass"
+            },
+            {
+              "id": "pass_bidding",
+              "label": "Pass bidding",
+              "event": "PASS_BID",
+              "primitive": "pass"
+            }
+          ]
+        },
+        "on": {
+          "ORDER_UP": {
+            "target": "trick_play",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "Trump ordered up. Play a card." }
+              }
+            ]
+          },
+          "PASS_BID": {
+            "target": "trick_play",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "Bidding passed — play begins. Play a card."
+                }
+              }
+            ]
+          }
+        }
+      },
+      "trick_play": {
+        "meta": {
+          "controls": [
+            {
+              "id": "play_card",
+              "label": "Play card",
+              "event": "PLAY",
+              "primitive": "play",
+              "requiresCardSelection": true
+            }
+          ]
+        },
+        "on": {
+          "PLAY": {
+            "target": "bots_trick",
+            "actions": [
+              "playHuman",
+              {
+                "type": "narrate",
+                "params": { "text": "You played. Bots follow…" }
+              },
+              "rotateTurn"
+            ]
+          }
+        }
+      },
+      "bots_trick": {
+        "entry": ["euchreBotsPlayTrick"],
+        "always": [
+          {
+            "guard": {
+              "type": "zoneCountEq",
+              "params": { "zone": "play", "value": 4 }
+            },
+            "target": "resolve_trick"
+          },
+          {
+            "guard": { "type": "isHumanTurn" },
+            "target": "trick_play"
+          },
+          { "target": "trick_play" }
+        ]
+      },
+      "resolve_trick": {
+        "entry": [
+          "sweepTrickToWinner",
+          {
+            "type": "narrate",
+            "params": { "text": "Trick awarded. Lead the next." }
+          },
+          { "type": "setTurn", "params": { "playerId": "human" } }
+        ],
+        "always": [
+          {
+            "guard": { "type": "humanHandEmpty" },
+            "target": "hand_over"
+          },
+          { "target": "trick_play" }
+        ]
+      },
+      "hand_over": {
+        "meta": {
+          "controls": [
+            {
+              "id": "new_hand",
+              "label": "New hand",
+              "event": "NEW_HAND",
+              "primitive": "pass"
+            }
+          ]
+        },
+        "on": {
+          "NEW_HAND": {
+            "target": "waiting_to_deal",
+            "actions": [
+              "resetHand",
+              {
+                "type": "narrate",
+                "params": { "text": "New hand. Deal when ready." }
+              }
+            ]
+          }
+        }
+      }
     }
-  ],
-  "instructions": "4 players play in 2 partnerships (you and Bot 2 are partners). After dealing 5 cards each, choose to order up trump or pass. Win 3 or more tricks to score points for your partnership.",
-  "openingNarration": "Euchre ready. Deal 5 cards to each player to start bidding!"
+  }
 }

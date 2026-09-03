@@ -10,70 +10,53 @@ description: >-
 
 # Card Table tools
 
-Tool schemas stay on the MCP server. This file is the playbook: **which tool, when**. Do not paste it into narration. Fetch `skills://card-table/reference.md` (WebMCP resource) only when writing `legalActions` or a custom game.
+Tool schemas stay on the MCP server. This file is the playbook: **which tool, when**. Do not paste it into narration. Fetch `skills://card-table/reference.md` (WebMCP resource) only when writing a custom XState `machine` for `create_game`.
 
-Seats: `human`, `bot_1`… or `each` / `others` / `current` / `winner`. Zones: `stock`, `hand`, `play`, `discard`, `capture`.
+Seats: `human`, `bot_1`… Zones: `stock`, `hand`, `play`, `discard`, `capture`.
 
 ## Discover tools
 
 Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking up the bare name fails.
 
-1. `GetDynamicTools` on `user-webmcp-local-relay` with **pattern** `list_presets` (or `create_game`, `deal`, …).
+1. `GetDynamicTools` on `user-webmcp-local-relay` with **pattern** `list_presets` (or `create_game`, `get_game_state`, …).
 2. Call the matching suffixed name. If two suffixes exist, use the source with the latest `lastSeenAt` (`webmcp_list_sources`).
 3. Do not call `GetDynamicTools` with `toolName` set to the unsuffixed playbook name.
 
 ## Start
 
 1. `list_presets` before inventing a game.
-2. Catalog → `create_game` with `preset` (name optional; the preset supplies it). Custom → omit `preset`; pass `name`, zones, `legalActions`, `instructions`.
-3. **Never move the human seat — in either mode.** The human clicks the on-screen `legalActions` buttons. Seat-scoped move tools (`draw`, `play`, `discard`, `capture`, `collect_sets`, `chip_action`, `apply_move`, `transfer_cards` from, `play_all`) hard-reject the human; use them for **bot** seats and dealer/table work only.
-   Tutorial step recipe: `highlight` the target + `narrate` what to do + `set_legal_actions` for the buttons, then `await_user_action({ expectActionId })` to block until the human clicks. The result carries `matched:false` if they clicked a different button — re-narrate and re-await. `await_user_action` rejects if the game ends while waiting.
-4. Mutating tools return compact agent state (in-play cards only, `stockCount`, last 3 narration lines). Use that result for the next decision — do **not** call `get_game_state` again unless the previous payload was lost.
+2. Catalog → `create_game` with `preset` (name optional). Custom → omit `preset`; pass `name` + XState-compatible `machine` JSON (+ zones / instructions).
+3. **The machine owns progression, bots, and rewards.** Do not call `set_phase`, `set_legal_actions`, `award_pot`, `award_chips`, `deal`, `draw`, `chip_action`, or other move tools to advance a catalog game — the human clicks on-screen controls and the FSM settles automatically.
+4. **Your job is to explain.** Use `get_game_state` + `narrate` (and in tutorial: `highlight` + `await_user_action`). Never move the human seat.
 
 ## Router
 
 | Intent | Tool |
 | --- | --- |
-| Compact state (if mutate result lost) | `get_game_state` |
-| Human buttons / next decision | `set_legal_actions` |
+| Compact state | `get_game_state` |
+| Student log / explain what happened | `narrate` |
 | Sidebar how-to | `set_instructions` |
-| Focus student attention | `highlight` (zone/player id target + optional playerId scope + label; null to clear) |
-| Student log | `narrate` (short) |
-| Phase label | `set_phase` |
-| Whose turn | `set_turn` (`next` / `previous` / `same` / `first` / id) or `rotate_turn` |
-| New deck | `shuffle` |
-| Wait for human click (tutorial) | `await_user_action` (`expectActionId` optional; `timeoutMs` optional) |
-| One-seat deal / community | `deal` (`playerId: play` for tableau) |
-| Uneven / mixed-visibility deal | `deal_batch` |
-| Hit / draw (bot) | `draw` |
-| Bot hand → play | `play` |
-| Simultaneous flip (War) | Human's Flip button (`play_all` is rejected for agents — it would move the human too) |
-| Bot hand → discard | `discard` |
-| Bot into score pile | `capture` |
-| Flip visibility | `reveal` |
-| Ask for a rank (Go Fish) | `transfer_cards` (`rank` or `rankFromSelection`; empty + `allowEmpty: false` = go fish; `from` is always a bot, never `human`) |
-| Bot books / pairs | `collect_sets` (`size` 4 or 2) |
-| Who wins a zone | `compare_zone` then `sweep_zone` (`to: winner` errors on a tie) |
-| Hand total | `score_hand` (Blackjack: `scoring: { aceAlt: 11, bustOver: 21 }`) |
-| Forced bets | `post_blinds` |
-| Bot bet | `chip_action` or `apply_move` chip primitive |
-| Side pots | `get_pots` then `award_pot` |
-| Off-pot chips | `award_chips` |
-| Between streets / new hand | `reset_round` (`betting` vs `hand`) |
-| Generic bot primitive | `apply_move` (bot seats only; `play_all` rejected) |
+| Focus student attention (tutorial) | `highlight` |
+| Wait for human click (tutorial) | `await_user_action` |
+| Start catalog / custom FSM | `create_game` |
+| List catalog | `list_presets` |
 
-Prefer the named tool over `apply_move` when both exist (`draw`, `play`, `transfer_cards`, …).
+Mutating tools still exist for legacy/custom escape hatches, but **do not use them to progress catalog machines** — phase, legal buttons, dealer/bots, and pot awards are encoded in the preset `machine`.
 
-## Catalog follow-through
+## Tutorial
 
-- **Hold'em**: `post_blinds` → deal holes → bot `chip_action` → flop/turn/river via `deal` to `play` → `reset_round` betting → showdown `get_pots` / `award_pot`.
-- **Blackjack**: after stand/bust, `score_hand` dealer, hit dealer to 17, `award_chips`.
-- **War**: fully button-driven — the human clicks Flip (`play_all` primitive). The agent may `compare_zone` to narrate who is ahead; never flip or sweep for the human.
-- **Go Fish**: `transfer_cards` from the asked bot; on error, `draw` and pass turn; `collect_sets` size 4.
+1. `highlight` the target + `narrate` what to do.
+2. `await_user_action({ expectActionId })` until the human clicks.
+3. Re-narrate from the new state (`matched:false` → correct and re-await).
+4. Do not invent the next buttons or awards — read them from state.
+
+## Custom games
+
+Write an XState `machine` (see `reference.md`): states, `meta.controls` (human buttons → events), named actions/guards from the registry (`chipBet`, `dealSpec`, `settleBlackjack`, `handBusted`, …). Settlement and phase changes belong in the machine, not in free-form tool calls.
 
 ## Rules
 
-- Never perform the human's actions — in tutorial, teach with `highlight` + `narrate` and wait for the click; in practice, the human plays unaided. Seat-scoped move tools reject `human`.
+- Never perform the human's actions.
 - Do not recreate a preset that `list_presets` already lists.
-- Refresh `legalActions` whenever the legal decision changes.
 - Keep `narrate` educational and short; do not dump JSON state.
+- Do not reason about award amounts or next phases for catalog games — the FSM already did.

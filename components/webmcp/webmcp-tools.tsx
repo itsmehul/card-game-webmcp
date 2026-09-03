@@ -6,6 +6,7 @@ import {
   useGameSession,
   listPresetIds,
   listPresets,
+  type CreateGameOptions,
   type DealSpec,
   type HandScoring,
   type LegalAction,
@@ -328,7 +329,7 @@ function DiscoveryTools() {
   useWebMCP({
     name: "create_game",
     description:
-      "Create a new card-game session and reset the table. For a catalog game, pass preset (e.g. texas-holdem, blackjack, war, go-fish); name is optional. For a custom game, omit preset and pass name, zones, legalActions, and instructions. Practice mode requires legalActions so the human has buttons to click.",
+      "Create a new card-game session and reset the table. Catalog: pass preset (e.g. blackjack, war). Custom: omit preset; pass name and an XState-compatible machine JSON (see skills://card-table/reference.md). The machine owns phases, human controls, bots, and rewards — do not use set_phase / set_legal_actions / award_* to progress catalog games. Explain with narrate / get_game_state.",
     inputSchema: {
       type: "object",
       properties: {
@@ -355,7 +356,7 @@ function DiscoveryTools() {
           type: "string",
           enum: ["tutorial", "practice"],
           description:
-            "tutorial: the agent teaches by highlighting the human's next action and narrating what to do — it must NOT perform the human's actions (the human clicks the on-screen buttons). practice: the human plays via legalActions controls with no agent narration. In both modes the human seat is button-driven; agents only move bot seats.",
+            "tutorial: teach with highlight + narrate + await_user_action (never move the human). practice: human clicks machine controls; agent only explains. Machines own bots and settlement.",
         },
         turnDirection: {
           type: "string",
@@ -368,7 +369,8 @@ function DiscoveryTools() {
         startingStack: { type: "number" },
         phase: {
           type: "string",
-          description: "Starting phase label (default waiting_to_deal)",
+          description:
+            "Legacy starting phase label; ignored when machine.initial is set.",
         },
         enabledZones: {
           type: "object",
@@ -385,10 +387,15 @@ function DiscoveryTools() {
           enum: ["spread", "stack"],
           description: "How to present shared play cards. Use stack for one face-down pile, such as Bullshit.",
         },
+        machine: {
+          type: "object",
+          description:
+            "XState machine JSON (required for custom games). States, meta.controls, named actions/guards — see skills://card-table/reference.md",
+        },
         legalActions: {
           type: "array",
           description:
-            "Practice-mode human buttons. See skills://card-table/reference.md",
+            "Legacy only. Prefer machine.meta.controls. Ignored for catalog presets.",
           items: LEGAL_ACTION_ITEM,
         },
         instructions: {
@@ -425,6 +432,7 @@ function DiscoveryTools() {
               }
             | undefined,
           playLayout: args?.playLayout as "spread" | "stack" | undefined,
+          machine: args?.machine as CreateGameOptions["machine"],
           legalActions:
             args?.legalActions !== undefined
               ? asLegalActions(args.legalActions)
@@ -438,12 +446,12 @@ function DiscoveryTools() {
           message: `Created ${session.name}`,
           hint:
             session.mode === "practice" && session.legalActions.length === 0
-              ? "No human controls yet. Call set_legal_actions (or recreate with legalActions) before the human's turn."
-              : undefined,
+              ? "No human controls in this phase — narrate the state or wait for the next machine phase."
+              : "Machine owns progression. Explain with narrate; do not award chips or set phases yourself.",
           state: gameStore.getStatePayload(),
         });
       } catch (e) {
-        return fail(e, "For catalog games pass a valid preset id from list_presets. For custom games pass name and legalActions.");
+        return fail(e, "For catalog games pass a valid preset id from list_presets. For custom games pass name and machine.");
       }
     },
   });
@@ -709,7 +717,7 @@ function GameSessionTools() {
   useWebMCP({
     name: "set_phase",
     description:
-      "Set the current phase label (e.g. preflop, flop, turn, river, showdown, player_hit).",
+      "Legacy: set a free-form phase label. Prefer encoding phases in the XState machine — do not use this to progress catalog games.",
     inputSchema: {
       type: "object",
       properties: {
@@ -731,7 +739,7 @@ function GameSessionTools() {
   useWebMCP({
     name: "set_legal_actions",
     description:
-      "Replace practice-mode human buttons. Call when the legal decision changes. Field notes: skills://card-table/reference.md",
+      "Legacy: replace human buttons. Catalog games derive controls from the machine — do not use this to progress them. Custom FSM games should encode controls in machine meta.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1094,7 +1102,7 @@ function GameSessionTools() {
   useWebMCP({
     name: "award_pot",
     description:
-      "Pay a pot to one or more winners, splitting the chips evenly (odd chips go to the first winner). Pass amount to settle a specific side pot from get_pots; omit amount to award the entire pot.",
+      "Legacy: pay pot chips to winners. Catalog machines settle automatically — do not call this to progress them. Pass amount for a side pot from get_pots; omit to award the entire pot.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1120,7 +1128,7 @@ function GameSessionTools() {
   useWebMCP({
     name: "award_chips",
     description:
-      "Adjust a seat's chip stack directly by a positive or negative amount, bypassing the pot. Use for Blackjack wager settlement, bonuses, or penalties.",
+      "Legacy: adjust a stack directly. Catalog machines (e.g. Blackjack settlement) award automatically — do not call this to progress them.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1266,7 +1274,7 @@ function TutorialAwaitTool() {
   useWebMCP({
     name: "await_user_action",
     description:
-      "Block until the human clicks a legalAction button on the table, then return what they did. Tutorial-only. Pass expectActionId to wait for a specific recommended action; if the human clicks a different action the result has matched:false so you can re-narrate and re-highlight. Always call highlight + narrate + set_legal_actions first so the student knows what to click. Resolves with { timedOut: true } after timeoutMs; rejects if the game ends while waiting.",
+      "Block until the human clicks a control on the table, then return what they did. Tutorial-only. Pass expectActionId to wait for a specific recommended action; if the human clicks a different action the result has matched:false so you can re-narrate and re-highlight. Always call highlight + narrate first (controls come from the machine). Resolves with { timedOut: true } after timeoutMs; rejects if the game ends while waiting.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1335,7 +1343,7 @@ function SkillResources() {
     uri: "skills://card-table/reference.md",
     name: "Card Table Reference",
     description:
-      "legalActions schema, primitives, branches, and create_game / set_legal_actions examples for custom games.",
+      "XState machine JSON for custom games: states, meta.controls, named actions/guards. Catalog games already ship machines.",
     mimeType: "text/markdown",
     read: async (uri) => ({
       contents: [

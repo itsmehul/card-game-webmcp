@@ -13,44 +13,136 @@
     "discard": true,
     "capture": true
   },
-  "phase": "waiting_to_deal",
-  "legalActions": [
-    {
-      "id": "deal",
-      "label": "Deal hands",
-      "primitive": "deal_spec",
-      "dealSpec": [
-        { "target": "each", "count": 10, "visibility": "hidden" }
-      ],
-      "nextPhase": "your_turn",
-      "nextActions": [
-        {
-          "id": "draw_stock",
-          "label": "Draw from stock",
-          "primitive": "draw",
-          "count": 1,
-          "visibility": "hidden",
-          "narration": "You drew a card from the stock."
+  "instructions": "Draw from stock, then discard one card to end your turn. Knock when ready for showdown. The bot draws and discards automatically after you.",
+  "openingNarration": "Gin Rummy ready. Deal 10 cards each and form your melds.",
+  "machine": {
+    "id": "gin-rummy",
+    "initial": "waiting_to_deal",
+    "states": {
+      "waiting_to_deal": {
+        "meta": {
+          "controls": [
+            {
+              "id": "deal",
+              "label": "Deal hands",
+              "event": "DEAL",
+              "primitive": "deal_spec"
+            }
+          ]
         },
-        {
-          "id": "discard_card",
-          "label": "Discard card",
-          "primitive": "discard",
-          "requiresCardSelection": true,
-          "rotateTurn": true,
-          "narration": "You discarded a card and passed the turn."
-        },
-        {
-          "id": "knock",
-          "label": "Knock",
-          "primitive": "pass",
-          "nextPhase": "showdown",
-          "narration": "You knocked! Showdown and count deadwood."
+        "on": {
+          "DEAL": {
+            "target": "need_draw",
+            "actions": [
+              {
+                "type": "dealSpec",
+                "params": {
+                  "dealSpec": [
+                    { "target": "each", "count": 10, "visibility": "hidden" }
+                  ]
+                }
+              },
+              "dealStarterDiscard",
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "10 cards each. Draw from stock, then discard."
+                }
+              },
+              { "type": "setTurn", "params": { "playerId": "human" } }
+            ]
+          }
         }
-      ],
-      "narration": "10 cards dealt each. Draw from stock or discard, form melds, and discard to end your turn."
+      },
+      "need_draw": {
+        "meta": {
+          "controls": [
+            {
+              "id": "draw_stock",
+              "label": "Draw from stock",
+              "event": "DRAW",
+              "primitive": "draw",
+              "count": 1
+            },
+            {
+              "id": "knock",
+              "label": "Knock",
+              "event": "KNOCK",
+              "primitive": "pass"
+            }
+          ]
+        },
+        "on": {
+          "DRAW": {
+            "target": "need_discard",
+            "actions": [
+              {
+                "type": "drawHuman",
+                "params": { "count": 1, "visibility": "hidden" }
+              },
+              {
+                "type": "narrate",
+                "params": { "text": "Drew. Now discard a card." }
+              }
+            ]
+          },
+          "KNOCK": {
+            "target": "showdown",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "You knocked! Hand over." }
+              }
+            ]
+          }
+        }
+      },
+      "need_discard": {
+        "meta": {
+          "controls": [
+            {
+              "id": "discard_card",
+              "label": "Discard card",
+              "event": "DISCARD",
+              "primitive": "discard",
+              "requiresCardSelection": true
+            }
+          ]
+        },
+        "on": {
+          "DISCARD": {
+            "target": "bots_play",
+            "actions": [
+              "discardHuman",
+              "rotateTurn",
+              {
+                "type": "narrate",
+                "params": { "text": "You discarded. Bot's turn…" }
+              }
+            ]
+          }
+        }
+      },
+      "bots_play": {
+        "entry": ["botSimplePlayOrDraw"],
+        "always": [
+          {
+            "guard": { "type": "isHumanTurn" },
+            "target": "need_draw",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "Your turn — draw or knock." }
+              }
+            ]
+          },
+          { "target": "need_draw" }
+        ]
+      },
+      "showdown": {
+        "type": "final",
+        "meta": { "controls": [] }
+      }
     }
-  ],
-  "instructions": "Form sets (3-4 of same rank) or runs (3+ suited sequence). On your turn, draw a card from stock, arrange your hand, and discard one card to pass. Knock when your unmatched cards (deadwood) total 10 or less.",
-  "openingNarration": "Gin Rummy ready. Deal 10 cards each and form your melds."
+  }
 }

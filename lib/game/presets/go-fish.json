@@ -13,62 +13,208 @@
     "discard": false,
     "capture": true
   },
-  "phase": "waiting_to_deal",
-  "legalActions": [
-    {
-      "id": "deal",
-      "label": "Deal hands",
-      "primitive": "deal_spec",
-      "dealSpec": [{ "target": "each", "count": 5, "visibility": "hidden" }],
-      "nextPhase": "your_turn",
-      "nextActions": [
-        {
-          "id": "ask_bot_1",
-          "label": "Ask Bot 1",
-          "primitive": "transfer",
-          "requiresCardSelection": true,
-          "transfer": {
-            "from": "bot_1",
-            "to": "human",
-            "rankFromSelection": true,
-            "visibility": "hidden"
-          },
-          "turnTarget": "same",
-          "narration": "Bot 1 handed over their matching cards. Ask again."
+  "instructions": "Select a card, then ask a rival for that rank. If they have matching cards you keep your turn; otherwise click Go fish. Bank books of four automatically when you collect them. Bots play automatically between your turns.",
+  "openingNarration": "Go Fish ready. Deal hands, then pick a rank to ask for.",
+  "machine": {
+    "id": "go-fish",
+    "initial": "waiting_to_deal",
+    "states": {
+      "waiting_to_deal": {
+        "meta": {
+          "controls": [
+            {
+              "id": "deal",
+              "label": "Deal hands",
+              "event": "DEAL",
+              "primitive": "deal_spec"
+            }
+          ]
         },
-        {
-          "id": "ask_bot_2",
-          "label": "Ask Bot 2",
-          "primitive": "transfer",
-          "requiresCardSelection": true,
-          "transfer": {
-            "from": "bot_2",
-            "to": "human",
-            "rankFromSelection": true,
-            "visibility": "hidden"
-          },
-          "turnTarget": "same",
-          "narration": "Bot 2 handed over their matching cards. Ask again."
-        },
-        {
-          "id": "go_fish",
-          "label": "Go fish",
-          "primitive": "draw",
-          "count": 1,
-          "visibility": "hidden",
-          "rotateTurn": true,
-          "narration": "You drew from the stock. Turn passes."
-        },
-        {
-          "id": "books",
-          "label": "Bank books",
-          "primitive": "collect_sets",
-          "setSize": 4
+        "on": {
+          "DEAL": {
+            "target": "your_turn",
+            "actions": [
+              {
+                "type": "dealSpec",
+                "params": {
+                  "dealSpec": [
+                    { "target": "each", "count": 5, "visibility": "hidden" }
+                  ]
+                }
+              },
+              {
+                "type": "narrate",
+                "params": {
+                  "text": "Five cards each. Select a card, then ask a rival."
+                }
+              },
+              { "type": "setTurn", "params": { "playerId": "human" } }
+            ]
+          }
         }
-      ],
-      "narration": "Five cards each. Select a card, then ask a rival for that rank."
+      },
+      "your_turn": {
+        "meta": {
+          "controls": [
+            {
+              "id": "ask_bot_1",
+              "label": "Ask Bot 1",
+              "event": "ASK_BOT_1",
+              "primitive": "transfer",
+              "requiresCardSelection": true
+            },
+            {
+              "id": "ask_bot_2",
+              "label": "Ask Bot 2",
+              "event": "ASK_BOT_2",
+              "primitive": "transfer",
+              "requiresCardSelection": true
+            },
+            {
+              "id": "books",
+              "label": "Bank books",
+              "event": "BOOKS",
+              "primitive": "collect_sets",
+              "setSize": 4
+            }
+          ]
+        },
+        "on": {
+          "ASK_BOT_1": [
+            {
+              "guard": {
+                "type": "askTargetHasRank",
+                "params": { "from": "bot_1" }
+              },
+              "target": "your_turn",
+              "actions": [
+                {
+                  "type": "transferAsk",
+                  "params": {
+                    "from": "bot_1",
+                    "to": "human",
+                    "rankFromSelection": true
+                  }
+                },
+                {
+                  "type": "collectBooksHuman",
+                  "params": { "size": 4 }
+                },
+                {
+                  "type": "narrate",
+                  "params": {
+                    "text": "Bot 1 handed over matching cards. Ask again."
+                  }
+                }
+              ]
+            },
+            {
+              "target": "go_fish_pending",
+              "actions": [
+                {
+                  "type": "narrate",
+                  "params": {
+                    "text": "Bot 1 has none. Click Go fish."
+                  }
+                }
+              ]
+            }
+          ],
+          "ASK_BOT_2": [
+            {
+              "guard": {
+                "type": "askTargetHasRank",
+                "params": { "from": "bot_2" }
+              },
+              "target": "your_turn",
+              "actions": [
+                {
+                  "type": "transferAsk",
+                  "params": {
+                    "from": "bot_2",
+                    "to": "human",
+                    "rankFromSelection": true
+                  }
+                },
+                {
+                  "type": "collectBooksHuman",
+                  "params": { "size": 4 }
+                },
+                {
+                  "type": "narrate",
+                  "params": {
+                    "text": "Bot 2 handed over matching cards. Ask again."
+                  }
+                }
+              ]
+            },
+            {
+              "target": "go_fish_pending",
+              "actions": [
+                {
+                  "type": "narrate",
+                  "params": {
+                    "text": "Bot 2 has none. Click Go fish."
+                  }
+                }
+              ]
+            }
+          ],
+          "BOOKS": {
+            "target": "your_turn",
+            "actions": [{ "type": "collectBooksHuman", "params": { "size": 4 } }]
+          }
+        }
+      },
+      "go_fish_pending": {
+        "meta": {
+          "controls": [
+            {
+              "id": "go_fish",
+              "label": "Go fish",
+              "event": "GO_FISH",
+              "primitive": "draw",
+              "count": 1
+            }
+          ]
+        },
+        "on": {
+          "GO_FISH": {
+            "target": "bots_play",
+            "actions": [
+              {
+                "type": "drawHuman",
+                "params": { "count": 1, "visibility": "hidden" }
+              },
+              {
+                "type": "collectBooksHuman",
+                "params": { "size": 4 }
+              },
+              "rotateTurn",
+              {
+                "type": "narrate",
+                "params": { "text": "You drew. Bots play…" }
+              }
+            ]
+          }
+        }
+      },
+      "bots_play": {
+        "entry": ["botsUntilHuman"],
+        "always": [
+          {
+            "guard": { "type": "isHumanTurn" },
+            "target": "your_turn",
+            "actions": [
+              {
+                "type": "narrate",
+                "params": { "text": "Your turn. Select a rank and ask." }
+              }
+            ]
+          },
+          { "target": "your_turn" }
+        ]
+      }
     }
-  ],
-  "instructions": "Select a card in your hand, then ask a rival for that rank. If they have any you take them and keep your turn; if they have none the ask fails, so click Go fish to draw and pass the turn. Bank books moves any completed set of four into your capture pile. Ask the agent to play the bots and to track who asked for what.",
-  "openingNarration": "Go Fish ready. Deal hands, then pick a rank to ask for."
+  }
 }

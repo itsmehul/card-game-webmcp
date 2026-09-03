@@ -23,6 +23,7 @@
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.6.0",
     "usewebmcp": "^5.1.0",
+    "xstate": "^5.32.6",
     "zod": "^4.5.4"
   },
   "devDependencies": {

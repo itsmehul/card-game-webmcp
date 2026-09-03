@@ -399,8 +399,8 @@ export function GameTable() {
                 </p>
               ) : view.legalActions.length === 0 ? (
                 <p className="text-sm text-emerald-400/80">
-                  No human controls yet. Ask the agent to pass legalActions on
-                  create_game or call set_legal_actions.
+                  No human controls in this phase. Ask the agent to explain the
+                  game state, or start a new hand when a control appears.
                 </p>
               ) : (
                 <AnimatePresence initial={false}>
