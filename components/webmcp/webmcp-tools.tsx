@@ -337,7 +337,7 @@ function DiscoveryTools() {
           type: "string",
           enum: ["tutorial", "practice"],
           description:
-            "tutorial: agent may move for the human; practice: human plays via legalActions controls",
+            "tutorial: the agent teaches by highlighting the human's next action and narrating what to do — it must NOT perform the human's actions (the human clicks the on-screen buttons). practice: the human plays via legalActions controls with no agent narration. In both modes the human seat is button-driven; agents only move bot seats.",
         },
         turnDirection: {
           type: "string",
@@ -772,7 +772,7 @@ function GameSessionTools() {
   useWebMCP({
     name: "apply_move",
     description:
-      "Apply a primitive move for any seat. In practice mode, the human seat is rejected because the human plays via on-screen buttons. In tutorial mode, all seats including the human are allowed. Prefer the named tool (draw, play, transfer_cards) over apply_move when one exists.",
+      "Apply a primitive move for a BOT seat only. The human seat is always rejected — the human plays via the on-screen legalActions buttons in both tutorial and practice mode. In tutorial, teach with highlight + narrate instead of moving for the human. Prefer the named tool (draw, play, transfer_cards) over apply_move when one exists.",
     inputSchema: {
       type: "object",
       properties: {

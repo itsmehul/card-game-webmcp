@@ -257,8 +257,11 @@ export const gameStore = {
     return session!;
   },
   /**
-   * Apply a move for a seat. In practice mode, human moves via UI only;
-   * agents may still move bots. In tutorial, agent may move any seat.
+   * Apply a move for a seat. The human seat is always driven by the human's
+   * on-screen buttons — in both tutorial and practice. Agents may move bot
+   * seats (e.g. a bot's bet or Go Fish response). In tutorial mode the agent
+   * teaches by highlighting the action and narrating what to do; it must not
+   * perform the human's action for them.
    */
   applyMove(input: {
     playerId: string;
@@ -287,9 +290,9 @@ export const gameStore = {
   }) {
     const s = requireSession();
     const isHuman = input.playerId === "human";
-    if (input.fromAgent && isHuman && s.mode === "practice") {
+    if (input.fromAgent && isHuman) {
       throw new Error(
-        "Practice mode: the human must play their own cards. Use tutorial mode to move for the human.",
+        "The human plays their own cards via the on-screen buttons in both tutorial and practice mode. To teach in tutorial, highlight the action (highlight) and narrate what to do (narrate) — do not move the human seat.",
       );
     }
 
