@@ -26,10 +26,12 @@ Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking u
 
 1. `list_presets` before inventing a game.
 2. Catalog → `create_game` with `preset` (name optional). Custom → omit `preset`; pass `name` + XState-compatible `machine` JSON (+ zones / instructions).
-3. **The machine owns progression, bots, and rewards.** Do not call `set_phase`, `set_legal_actions`, `award_pot`, `award_chips`, `deal`, `draw`, `chip_action`, or other move tools to advance a catalog game — the human clicks on-screen controls and the FSM settles automatically.
+3. **The machine owns progression, bots, and rewards.** The human clicks on-screen controls; the FSM deals, runs bots, and settles. There are no agent deal/bet/award tools.
 4. **Your job is to explain.** Use `get_game_state` + `narrate` (and in tutorial: `highlight` + `await_user_action`). Never move the human seat.
 
 ## Router
+
+These are the only card-table tools:
 
 | Intent | Tool |
 | --- | --- |
@@ -40,8 +42,6 @@ Host names are **suffixed** (`list_presets_bb8b`, not `list_presets`). Looking u
 | Wait for human click (tutorial) | `await_user_action` |
 | Start catalog / custom FSM | `create_game` |
 | List catalog | `list_presets` |
-
-Mutating tools still exist for legacy/custom escape hatches, but **do not use them to progress catalog machines** — phase, legal buttons, dealer/bots, and pot awards are encoded in the preset `machine`.
 
 ## Tutorial
 

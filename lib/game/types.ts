@@ -309,8 +309,7 @@ export interface CreateGameOptions {
   /** Catalog preset id (e.g. texas-holdem, blackjack). Omit for a custom game. */
   preset?: string;
   /**
-   * Initial human controls for practice mode (legacy). Prefer `machine`
-   * so phase flow and rewards are deterministic.
+   * @deprecated Prefer `machine` meta.controls. Ignored when a machine is used.
    */
   legalActions?: LegalAction[];
   /**
@@ -318,7 +317,7 @@ export interface CreateGameOptions {
    * Catalog presets supply this via their JSON files.
    */
   machine?: import("./machine/types").GameMachineConfig;
-  /** Starting phase label (default waiting_to_deal) */
+  /** @deprecated Prefer machine.initial */
   phase?: string;
   /** Student-facing how-to; shown in the instructions sidebar */
   instructions?: string;

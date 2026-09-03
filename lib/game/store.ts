@@ -2,38 +2,12 @@
 
 import { useSyncExternalStore } from "react";
 import {
-  allIn,
   applyHumanLegalAction,
-  awardChips,
-  awardPot,
-  capture,
-  chipAction,
-  collectSets,
-  computePots,
   createSession,
-  deal,
-  dealBatch,
-  dealToPlay,
-  discard,
-  draw,
   getOmniscientState,
-  moveTurn,
   narrate,
-  play,
-  playAll,
-  postBlinds,
-  resetBettingRound,
-  resetHand,
-  reveal,
-  rotateTurn,
-  setLegalActions,
   setMode,
-  setPhase,
-  setTurn,
   setInstructions,
-  shuffle,
-  sweepZone,
-  transfer,
 } from "./engine";
 import {
   sendHumanEvent,
@@ -42,7 +16,6 @@ import {
   type GameActor,
 } from "./machine";
 import type { GameMachineConfig } from "./machine/types";
-import { compareZone, findSets, scoreHand } from "./scoring";
 import {
   isKnownPreset,
   startPresetWithActor,
@@ -50,19 +23,11 @@ import {
 import type {
   AwaitUserActionOptions,
   AwaitUserActionResult,
-  ChipActionKind,
   CreateGameOptions,
-  DealSpec,
   GameSession,
-  HandScoring,
   Highlight,
   LegalAction,
-  SeatTarget,
   SessionMode,
-  SweepSpec,
-  TransferSpec,
-  Visibility,
-  ZoneKind,
 } from "./types";
 
 type Listener = () => void;
@@ -242,96 +207,6 @@ export const gameStore = {
     stopActor();
     setSession(null);
   },
-  shuffle() {
-    return mutateSession((s) => ({
-      ...s,
-      cards: shuffle(s.cards),
-      players: s.players.map((p) => ({ ...p, folded: false })),
-    }));
-  },
-  deal(playerId: string, count: number, visibility?: Visibility) {
-    return mutateSession((s) => deal(s, playerId, count, visibility));
-  },
-  dealToPlay(count: number, visibility?: Visibility) {
-    return mutateSession((s) => dealToPlay(s, count, visibility));
-  },
-  draw(playerId: string, count?: number, visibility?: Visibility) {
-    return mutateSession((s) => draw(s, playerId, count, visibility));
-  },
-  play(playerId: string, cardIds: string[], visibility?: Visibility) {
-    return mutateSession((s) => play(s, playerId, cardIds, visibility));
-  },
-  discard(playerId: string, cardIds: string[], visibility?: Visibility) {
-    return mutateSession((s) => discard(s, playerId, cardIds, visibility));
-  },
-  capture(playerId: string, cardIds: string[], visibility?: Visibility) {
-    return mutateSession((s) => capture(s, playerId, cardIds, visibility));
-  },
-  reveal(cardIds: string[], visibility?: Visibility) {
-    return mutateSession((s) => reveal(s, cardIds, visibility));
-  },
-  rotateTurn() {
-    return mutateSession((s) => rotateTurn(s));
-  },
-  setTurn(playerId: string) {
-    return mutateSession((s) => setTurn(s, playerId));
-  },
-  moveTurn(target: SeatTarget | "next" | "previous" | "same" | "first") {
-    return mutateSession((s) => moveTurn(s, target));
-  },
-  dealBatch(specs: DealSpec[]) {
-    return mutateSession((s) => dealBatch(s, specs));
-  },
-  transfer(spec: TransferSpec) {
-    return mutateSession((s) => transfer(s, spec));
-  },
-  playAll(count?: number, visibility?: Visibility) {
-    return mutateSession((s) => playAll(s, count, visibility));
-  },
-  sweepZone(spec: SweepSpec) {
-    return mutateSession((s) => sweepZone(s, spec));
-  },
-  collectSets(playerId: string, size?: number, toZone?: ZoneKind) {
-    const result = collectSets(requireSession(), playerId, size, toZone);
-    mutateSession(() => result.session);
-    return { session: session!, sets: result.sets };
-  },
-  findSets(playerId: string, size: number) {
-    return findSets(requireSession(), playerId, size);
-  },
-  scoreHand(playerId: string, scoring?: HandScoring) {
-    return scoreHand(requireSession(), playerId, scoring);
-  },
-  compareZone(zone?: ZoneKind) {
-    return compareZone(requireSession(), zone);
-  },
-  postBlinds(blinds: Array<{ playerId: string; amount: number }>) {
-    return mutateSession((s) => postBlinds(s, blinds));
-  },
-  allIn(playerId: string) {
-    return mutateSession((s) => allIn(s, playerId));
-  },
-  computePots() {
-    return computePots(requireSession());
-  },
-  awardPot(winnerIds: string[], amount?: number) {
-    return mutateSession((s) => awardPot(s, winnerIds, amount));
-  },
-  awardChips(playerId: string, amount: number) {
-    return mutateSession((s) => awardChips(s, playerId, amount));
-  },
-  resetBettingRound() {
-    return mutateSession((s) => resetBettingRound(s));
-  },
-  resetHand() {
-    return mutateSession((s) => resetHand(s));
-  },
-  setPhase(phase: string) {
-    return mutateSession((s) => setPhase(s, phase));
-  },
-  setLegalActions(actions: LegalAction[]) {
-    return mutateSession((s) => setLegalActions(s, actions));
-  },
   applyHumanLegalAction(
     action: LegalAction,
     opts?: { selectedCardIds?: string[]; amount?: number },
@@ -398,9 +273,6 @@ export const gameStore = {
   setMode(mode: SessionMode) {
     return mutateSession((s) => setMode(s, mode));
   },
-  chipAction(playerId: string, action: ChipActionKind, amount?: number) {
-    return mutateSession((s) => chipAction(s, playerId, action, amount));
-  },
   narrate(text: string) {
     return mutateSession((s) => narrate(s, text));
   },
@@ -409,96 +281,6 @@ export const gameStore = {
   },
   setHighlight(highlight: Highlight | null) {
     return mutateSession((s) => ({ ...s, highlight }));
-  },
-  applyMove(input: {
-    playerId: string;
-    primitive:
-      | "draw"
-      | "deal_all"
-      | "play"
-      | "play_all"
-      | "discard"
-      | "capture"
-      | "collect_sets"
-      | "reveal"
-      | "pass"
-      | "fold"
-      | "check"
-      | "call"
-      | "bet"
-      | "raise"
-      | "all_in";
-    cardIds?: string[];
-    count?: number;
-    amount?: number;
-    setSize?: number;
-    visibility?: Visibility;
-    fromAgent?: boolean;
-  }) {
-    const s = requireSession();
-    const isHuman = input.playerId === "human";
-    if (input.fromAgent && (isHuman || input.primitive === "play_all")) {
-      throw new Error(
-        "The human plays their own cards via the on-screen buttons in both tutorial and practice mode. To teach in tutorial, highlight the action (highlight) and narrate what to do (narrate) — do not move the human seat.",
-      );
-    }
-
-    switch (input.primitive) {
-      case "deal_all": {
-        return mutateSession((cur) => {
-          let next = cur;
-          for (const p of next.players) {
-            if (!p.folded) {
-              next = deal(
-                next,
-                p.id,
-                input.count ?? 1,
-                input.visibility ?? "hidden",
-              );
-            }
-          }
-          return next;
-        });
-      }
-      case "pass":
-        return session!;
-      case "draw":
-        return this.draw(input.playerId, input.count ?? 1, input.visibility);
-      case "play":
-        return this.play(
-          input.playerId,
-          input.cardIds ?? [],
-          input.visibility,
-        );
-      case "discard":
-        return this.discard(
-          input.playerId,
-          input.cardIds ?? [],
-          input.visibility,
-        );
-      case "capture":
-        return this.capture(
-          input.playerId,
-          input.cardIds ?? [],
-          input.visibility,
-        );
-      case "play_all":
-        return this.playAll(input.count ?? 1, input.visibility ?? "public");
-      case "collect_sets":
-        return this.collectSets(input.playerId, input.setSize ?? 4).session;
-      case "reveal":
-        return this.reveal(input.cardIds ?? [], input.visibility);
-      case "all_in":
-        return this.allIn(input.playerId);
-      case "fold":
-      case "check":
-      case "call":
-      case "bet":
-      case "raise":
-        return this.chipAction(input.playerId, input.primitive, input.amount);
-      default:
-        throw new Error(`Unknown primitive: ${input.primitive}`);
-    }
   },
   getStatePayload() {
     return getOmniscientState(requireSession());
