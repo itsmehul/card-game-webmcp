@@ -14,5 +14,11 @@ export {
   type PresetCatalogEntry,
 } from "./presets";
 export * from "./machine/types";
-export { startGameActor, sendHumanEvent } from "./machine";
+export { startGameActor, restoreGameActor, sendHumanEvent } from "./machine";
+export {
+  savePersistedGame,
+  loadPersistedGame,
+  removePersistedGame,
+  type PersistedGame,
+} from "./persistence";
 export * from "./poker";

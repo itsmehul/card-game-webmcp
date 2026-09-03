@@ -10,12 +10,18 @@ import {
   setInstructions,
 } from "./engine";
 import {
+  restoreGameActor,
   sendHumanEvent,
   startGameActor,
   syncActorSession,
   type GameActor,
 } from "./machine";
 import type { GameMachineConfig } from "./machine/types";
+import {
+  loadPersistedGame,
+  removePersistedGame,
+  savePersistedGame,
+} from "./persistence";
 import {
   isKnownPreset,
   startPresetWithActor,
@@ -34,6 +40,8 @@ type Listener = () => void;
 
 let session: GameSession | null = null;
 let actor: GameActor | null = null;
+let machineConfig: GameMachineConfig | null = null;
+let presetId: string | null = null;
 const listeners = new Set<Listener>();
 
 type PendingAwait = {
@@ -107,9 +115,29 @@ function stopActor() {
   }
 }
 
+function persistCurrent(): void {
+  if (!session || !machineConfig || !actor) return;
+  try {
+    savePersistedGame(session.id, {
+      version: 1,
+      presetId,
+      machine: machineConfig,
+      actorSnapshot: actor.getPersistedSnapshot(),
+    });
+  } catch {
+    // Ignore persistence failures.
+  }
+}
+
 function setSession(next: GameSession | null) {
   session = next;
+  if (next) persistCurrent();
   emit();
+}
+
+function clearMachineMeta() {
+  machineConfig = null;
+  presetId = null;
 }
 
 /**
@@ -127,6 +155,7 @@ function mutateSession(updater: (s: GameSession) => GameSession): GameSession {
       legalActions: [],
     });
     session = { ...projected, highlight: mutated.highlight ?? highlight };
+    persistCurrent();
     emit();
     return session;
   }
@@ -142,8 +171,11 @@ function requireSession(): GameSession {
 function bootMachine(
   machine: GameMachineConfig,
   base: GameSession,
+  nextPresetId: string | null = null,
 ): GameSession {
   stopActor();
+  machineConfig = machine;
+  presetId = nextPresetId;
   const started = startGameActor(machine, base);
   actor = started.actor;
   setSession(started.session);
@@ -174,6 +206,8 @@ export const gameStore = {
     if (known) {
       const started = startPresetWithActor(options.preset!, options);
       stopActor();
+      machineConfig = started.machine;
+      presetId = options.preset!;
       actor = started.actor;
       setSession(started.session);
       return started.session;
@@ -186,7 +220,7 @@ export const gameStore = {
       );
     }
     const base = createSession(options);
-    return bootMachine(machine, base);
+    return bootMachine(machine, base, null);
   },
   startPreset(
     id: string,
@@ -197,14 +231,46 @@ export const gameStore = {
     resetHumanActionLog();
     const started = startPresetWithActor(id, { mode, botCount });
     stopActor();
+    machineConfig = started.machine;
+    presetId = id;
     actor = started.actor;
     setSession(started.session);
     return started.session;
   },
+  /**
+   * Restore a session from localStorage by id.
+   * Returns true when hydrate succeeded.
+   */
+  hydrate(id: string): boolean {
+    if (session?.id === id && actor) return true;
+    const persisted = loadPersistedGame(id);
+    if (!persisted) return false;
+    try {
+      cancelPendingAwait("Session restored while awaiting a user action.");
+      resetHumanActionLog();
+      stopActor();
+      const restored = restoreGameActor(
+        persisted.machine,
+        persisted.actorSnapshot,
+      );
+      machineConfig = persisted.machine;
+      presetId = persisted.presetId;
+      actor = restored.actor;
+      session = restored.session;
+      // Re-save so storage stays in sync with projected session.
+      persistCurrent();
+      emit();
+      return true;
+    } catch {
+      return false;
+    }
+  },
   clear() {
     cancelPendingAwait("Game ended while awaiting a user action.");
     resetHumanActionLog();
+    if (session) removePersistedGame(session.id);
     stopActor();
+    clearMachineMeta();
     setSession(null);
   },
   applyHumanLegalAction(

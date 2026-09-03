@@ -15,6 +15,7 @@ import { actionIcon } from "@/components/game/action-icon";
 import { ChipAmount } from "@/components/game/chip-amount";
 import { GameCatalog } from "@/components/game/game-catalog";
 import { TableSidebars } from "@/components/game/instructions-sidebar";
+import { SessionUrlSync } from "@/components/game/session-url-sync";
 import { WebMCPStatus } from "@/components/webmcp/webmcp-status";
 import { WebMCPTools } from "@/components/webmcp/webmcp-tools";
 import {
@@ -29,7 +30,11 @@ import { PlayingCard } from "@/components/cards/playing-card";
 const HIGHLIGHT_CLASSES =
   "ring-2 ring-sky-400 shadow-[0_0_16px_4px_rgba(56,189,248,0.45)] animate-[highlight-pulse_2s_ease-in-out_infinite] relative";
 
-export function GameTable() {
+export function GameTable({
+  routeSessionId,
+}: {
+  routeSessionId?: string;
+} = {}) {
   const session = useGameSession();
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [amountDraft, setAmountDraft] = useState<Record<string, string>>({});
@@ -133,8 +138,10 @@ export function GameTable() {
   }
 
   return (
-    <div className="flex h-dvh min-h-0 flex-1 flex-col overflow-hidden bg-[#0b1f14] text-base text-emerald-50">
+    <>
       <WebMCPTools />
+      <SessionUrlSync routeSessionId={routeSessionId}>
+        <div className="flex h-dvh min-h-0 flex-1 flex-col overflow-hidden bg-[#0b1f14] text-base text-emerald-50">
 
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-900/50 px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -471,5 +478,7 @@ export function GameTable() {
       )}
       </div>
     </div>
+      </SessionUrlSync>
+    </>
   );
 }

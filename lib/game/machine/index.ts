@@ -11,7 +11,12 @@ import type {
 // Loose actor handle — concrete machine types vary per preset JSON.
 export type GameActor = {
   send: (event: unknown) => void;
-  getSnapshot: () => { context: GameMachineContext; value: unknown; getMeta: () => Record<string, unknown> };
+  getSnapshot: () => {
+    context: GameMachineContext;
+    value: unknown;
+    getMeta: () => Record<string, unknown>;
+  };
+  getPersistedSnapshot: () => unknown;
   start: () => void;
   stop: () => void;
 };
@@ -56,15 +61,34 @@ export function createGameMachine(
 export function startGameActor(
   config: GameMachineConfig,
   session: GameSession,
+  persistedSnapshot?: unknown,
 ): { actor: GameActor; session: GameSession } {
   const machine = createGameMachine(config, session);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const actor = createActor(machine as any);
+  const actor = createActor(
+    machine as any,
+    persistedSnapshot ? { snapshot: persistedSnapshot as never } : undefined,
+  );
   actor.start();
   return {
     actor: actor as unknown as GameActor,
     session: projectSession(actor.getSnapshot() as never),
   };
+}
+
+/** Restore an actor from a persisted XState snapshot without re-running entry actions. */
+export function restoreGameActor(
+  config: GameMachineConfig,
+  persistedSnapshot: unknown,
+): { actor: GameActor; session: GameSession } {
+  const snap = persistedSnapshot as {
+    context?: { session?: GameSession };
+  };
+  const session = snap?.context?.session;
+  if (!session) {
+    throw new Error("Persisted snapshot is missing session context.");
+  }
+  return startGameActor(config, session, persistedSnapshot);
 }
 
 export function sendHumanEvent(
