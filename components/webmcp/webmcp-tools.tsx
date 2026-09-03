@@ -1,6 +1,5 @@
 "use client";
 
-import { useWebMCP, useWebMCPResource } from "@mcp-b/react-webmcp";
 import {
   gameStore,
   listPresetIds,
@@ -8,6 +7,7 @@ import {
   type CreateGameOptions,
   type Highlight,
 } from "@/lib/game";
+import { useWebMCP, useWebMCPResource } from "@mcp-b/react-webmcp";
 
 const EMPTY_SCHEMA = {
   type: "object",
@@ -128,7 +128,7 @@ function DiscoveryTools() {
   useWebMCP({
     name: "create_game",
     description:
-      "Create a new card-game session and reset the table. Catalog: pass preset (e.g. blackjack, war). Custom: omit preset; pass name and an XState-compatible machine JSON (see skills://card-table/reference.md). The machine owns phases, human controls, bots, and rewards. Session tools (get_game_state, narrate, highlight, await_user_action, coach) are always listed — they error until a session exists. Tutorial: prefer coach, or highlight + narrate + await_user_action (await/coach return state — do not get_game_state after).",
+      "Create a new card-game session and reset the table (navigates this tab to /game/<newId>). Call on any already-connected Playing cards simulator source from webmcp_list_sources — home `/` or `/game/...`; deep links are hints that the site is open, not a required URL. Do not webmcp_open_page when a same-origin source exists. Catalog: pass preset (e.g. blackjack, war). Custom: omit preset; pass name and an XState-compatible machine JSON (see skills://card-table/reference.md). The machine owns phases, human controls, bots, and rewards. Session tools (get_game_state, narrate, highlight, await_user_action, coach) are always listed — they error until a session exists. Tutorial: prefer coach, or highlight + narrate + await_user_action (await/coach return state — do not get_game_state after).",
     inputSchema: {
       type: "object",
       properties: {
@@ -216,12 +216,12 @@ function DiscoveryTools() {
           startingStack: args?.startingStack as number | undefined,
           enabledZones: args?.enabledZones as
             | {
-                stock?: boolean;
-                hand?: boolean;
-                play?: boolean;
-                discard?: boolean;
-                capture?: boolean;
-              }
+              stock?: boolean;
+              hand?: boolean;
+              play?: boolean;
+              discard?: boolean;
+              capture?: boolean;
+            }
             | undefined,
           playLayout: args?.playLayout as "spread" | "stack" | undefined,
           machine: args?.machine as CreateGameOptions["machine"],
@@ -234,7 +234,7 @@ function DiscoveryTools() {
           message: `Created ${session.name}`,
           hint:
             session.mode === "tutorial"
-              ? "Tutorial: prefer coach({ text, target, expectActionId }), or highlight + narrate + await_user_action. await/coach return state — skip get_game_state. Never click for the human. Do not re-narrate machine event lines."
+              ? "Tutorial: prefer coach({ text, target, expectActionId }), or highlight + narrate + await_user_action. await/coach return state — skip get_game_state. Never click for the human. Do not re-narrate machine event lines. Do not webmcp_open_page or webmcp_list_tools while this session's source is connected."
               : "Machine owns progression. Explain with narrate; do not invent phases or awards.",
           state: gameStore.getStatePayload(),
         });
@@ -469,9 +469,9 @@ function TutorialTools() {
 function SkillResources() {
   useWebMCPResource({
     uri: "skills://card-table/SKILL.md",
-    name: "Card Table Skill",
+    name: "Playing cards simulator Skill",
     description:
-      "Playbook for card-table WebMCP tools: which tool to call, when, and catalog follow-through recipes.",
+      "Playbook for Playing cards simulator WebMCP tools: which tool to call, when, and catalog follow-through recipes.",
     mimeType: "text/markdown",
     read: async (uri) => ({
       contents: [
@@ -487,7 +487,7 @@ function SkillResources() {
 
   useWebMCPResource({
     uri: "skills://card-table/reference.md",
-    name: "Card Table Reference",
+    name: "Playing cards simulator Reference",
     description:
       "XState machine JSON for custom games: states, meta.controls, named actions/guards. Catalog games already ship machines.",
     mimeType: "text/markdown",

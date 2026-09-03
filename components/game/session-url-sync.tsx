@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { gameStore, useGameSession } from "@/lib/game";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { gameStore, useGameSession } from "@/lib/game";
+import { useEffect, useState, type ReactNode } from "react";
 
 type HydrateStatus = "idle" | "loading" | "ready" | "missing";
 
@@ -61,7 +61,7 @@ export function SessionUrlSync({
     return (
       <div className="flex h-dvh min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-[#0b1f14] px-8 text-center">
         <p className="font-mono text-xs tracking-[0.2em] text-emerald-500/70 uppercase">
-          Card Table
+          Playing cards simulator
         </p>
         <p className="text-sm text-emerald-100/60">Restoring session…</p>
       </div>
@@ -72,7 +72,7 @@ export function SessionUrlSync({
     return (
       <div className="flex h-dvh min-h-0 flex-1 flex-col items-center justify-center gap-4 bg-[#0b1f14] px-8 text-center">
         <p className="font-mono text-xs tracking-[0.2em] text-emerald-500/70 uppercase">
-          Card Table
+          Playing cards simulator
         </p>
         <h1 className="text-2xl font-semibold tracking-tight text-emerald-50">
           Session not found

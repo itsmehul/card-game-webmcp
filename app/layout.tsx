@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Card Table · WebMCP",
+  title: "Playing cards simulator",
   description:
     "Offline card game simulator with agent-driven bots over WebMCP",
 };

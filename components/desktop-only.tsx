@@ -5,7 +5,7 @@ export function DesktopOnly({ children }: { children: ReactNode }) {
     <>
       <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-3 px-8 text-center md:hidden">
         <p className="font-mono text-xs tracking-[0.2em] text-emerald-500/70 uppercase">
-          Card Table
+          Playing cards simulator
         </p>
         <h1 className="text-2xl font-semibold tracking-tight text-emerald-50">
           Desktop only

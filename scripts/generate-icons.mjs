@@ -1,9 +1,9 @@
-import { mkdir, copyFile, writeFile, readFile } from "node:fs/promises";
+import inquirer from "inquirer";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import inquirer from "inquirer";
-import sharp from "sharp";
 import pngToIco from "png-to-ico";
+import sharp from "sharp";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -68,11 +68,11 @@ async function generateSocial(svg) {
 
   await writeFile(
     path.join(appDir, "opengraph-image.alt.txt"),
-    "Card Table — learn and play card games with WebMCP\n",
+    "Playing cards simulator — learn and play card games with WebMCP\n",
   );
   await writeFile(
     path.join(appDir, "twitter-image.alt.txt"),
-    "Card Table — learn and play card games with WebMCP\n",
+    "Playing cards simulator — learn and play card games with WebMCP\n",
   );
   console.log("  wrote app/opengraph-image.alt.txt");
   console.log("  wrote app/twitter-image.alt.txt");
@@ -84,24 +84,24 @@ const skipPrompt = process.argv.includes("--all") || !process.stdin.isTTY;
 const targets = skipPrompt
   ? allTargets
   : (
-      await inquirer.prompt([
-        {
-          type: "checkbox",
-          name: "targets",
-          message: "Generate image assets from public/logo.svg",
-          choices: [
-            { name: "Favicon (.ico)", value: "favicon", checked: true },
-            {
-              name: "App icons (icon.svg, apple-icon, PWA sizes)",
-              value: "icons",
-              checked: true,
-            },
-            { name: "Social / OG images", value: "social", checked: true },
-          ],
-          validate: (v) => (v.length ? true : "Select at least one target"),
-        },
-      ])
-    ).targets;
+    await inquirer.prompt([
+      {
+        type: "checkbox",
+        name: "targets",
+        message: "Generate image assets from public/logo.svg",
+        choices: [
+          { name: "Favicon (.ico)", value: "favicon", checked: true },
+          {
+            name: "App icons (icon.svg, apple-icon, PWA sizes)",
+            value: "icons",
+            checked: true,
+          },
+          { name: "Social / OG images", value: "social", checked: true },
+        ],
+        validate: (v) => (v.length ? true : "Select at least one target"),
+      },
+    ])
+  ).targets;
 
 const svg = await readFile(logoPath);
 await mkdir(appDir, { recursive: true });
