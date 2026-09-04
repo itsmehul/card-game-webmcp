@@ -20,6 +20,7 @@ import { StockPile } from "@/components/zones/stock-pile";
 import {
   gameStore,
   getHumanView,
+  tutorialCuePhase,
   useGameSession,
   type LegalAction,
   type SessionMode,
@@ -47,8 +48,17 @@ export function GameTable({
   );
 
   const highlight = view?.highlight ?? null;
+  const cuePhase = tutorialCuePhase(
+    highlight,
+    view?.legalActions ?? [],
+    selectedCardIds,
+  );
+  const cueCardId = highlight?.cardId;
   const zoneLabel =
-    highlight?.label && !highlight.actionId ? highlight.label : null;
+    highlight?.label &&
+    (cuePhase === "card" || !highlight.actionId)
+      ? highlight.label
+      : null;
 
   function isHighlighted(target: string, playerId?: string): boolean {
     if (!highlight) return false;
@@ -345,10 +355,20 @@ export function GameTable({
 
                 {/* Human seat */}
                 <div
-                  className={`relative mx-auto flex w-full max-w-3xl flex-col items-center gap-2 rounded-lg border border-emerald-900/45 bg-emerald-950/20 px-3 py-2.5 transition-shadow duration-300 ${isHighlighted("hand", "human") || isHighlighted("human") ? HIGHLIGHT_CLASSES : ""
-                    }`}
+                  className={`relative mx-auto flex w-full max-w-3xl flex-col items-center gap-2 rounded-lg border border-emerald-900/45 bg-emerald-950/20 px-3 py-2.5 transition-shadow duration-300 ${
+                    cuePhase === "card" && cueCardId
+                      ? ""
+                      : isHighlighted("hand", "human") ||
+                          isHighlighted("human") ||
+                          (cuePhase === "card" && !cueCardId)
+                        ? HIGHLIGHT_CLASSES
+                        : ""
+                  }`}
                 >
-                  {(isHighlighted("hand", "human") || isHighlighted("human")) && zoneLabel && (
+                  {(cuePhase === "card" ||
+                    isHighlighted("hand", "human") ||
+                    isHighlighted("human")) &&
+                    zoneLabel && (
                     <span className="absolute -top-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
                       {zoneLabel}
                     </span>
@@ -364,6 +384,9 @@ export function GameTable({
                     <Hand
                       cards={human.hand}
                       selectedIds={selectedCardIds}
+                      highlightedIds={
+                        cuePhase === "card" && cueCardId ? [cueCardId] : []
+                      }
                       onSelect={toggleSelectedCard}
                       interactive={interactive}
                     />
@@ -388,10 +411,10 @@ export function GameTable({
 
                 {/* Actions — driven entirely by agent-defined legalActions */}
                 <div
-                  className={`relative mx-auto flex w-full max-w-3xl flex-col gap-1.5 rounded-lg px-1 py-1 transition-shadow duration-300 ${isHighlighted("actions") && !highlight?.actionId ? HIGHLIGHT_CLASSES : ""
+                  className={`relative mx-auto flex w-full max-w-3xl flex-col gap-1.5 rounded-lg px-1 py-1 transition-shadow duration-300 ${isHighlighted("actions") && !highlight?.actionId && cuePhase !== "card" ? HIGHLIGHT_CLASSES : ""
                     }`}
                 >
-                  {isHighlighted("actions") && zoneLabel && (
+                  {isHighlighted("actions") && cuePhase !== "card" && zoneLabel && (
                     <span className="absolute -top-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-sky-500/90 px-2 py-0.5 text-xs font-medium text-white shadow-md">
                       {zoneLabel}
                     </span>
@@ -399,7 +422,8 @@ export function GameTable({
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     {view.legalActions.length > 0 ? (
                       view.legalActions.map((action) => {
-                        const actionCue = highlight?.actionId === action.id;
+                        const actionCue =
+                          highlight?.actionId === action.id && cuePhase !== "card";
                         return (
                           <div
                             key={action.id}

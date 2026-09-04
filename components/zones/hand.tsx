@@ -7,12 +7,14 @@ import type { CardPublicView } from "@/lib/game";
 export function Hand({
   cards,
   selectedIds = [],
+  highlightedIds = [],
   onSelect,
   interactive,
   label = "Your hand",
 }: {
   cards: CardPublicView[];
   selectedIds?: string[];
+  highlightedIds?: string[];
   onSelect?: (id: string) => void;
   interactive?: boolean;
   label?: string;
@@ -41,6 +43,7 @@ export function Hand({
                 suit={c.suit}
                 size="sm"
                 selected={selectedIds.includes(c.id)}
+                highlighted={highlightedIds.includes(c.id)}
                 onClick={
                   interactive && onSelect ? () => onSelect(c.id) : undefined
                 }

@@ -95,6 +95,7 @@ Write an XState `machine` (see `reference.md`): states, `meta.controls` (human b
 - Keep `narrate` educational and short; do not dump JSON state.
 - Do not reason about award amounts or next phases for catalog games — the FSM already did.
 - Prefer one `actions` highlight when coaching a click; reserve hand highlights for reveal/settlement beats.
-- `coach` with `expectActionId` pins the click cue on that button (label included). Do not put click labels on top bot seats.
+- When the student must pick a card first, pass `cardId` on `coach` / `highlight`. The table glows that card before the play button.
+- `coach` with `expectActionId` pins the click cue on that button after any required card pick (label included). Do not put click labels on top bot seats.
 - Never `webmcp_open_page` when a same-origin Playing cards simulator source is already connected.
 - Never `webmcp_list_tools` or full-namespace schema dumps to pick a suffix — use `list_sources` + one targeted `GetDynamicTools` pass.

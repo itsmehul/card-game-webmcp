@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  actionNeedsCardSelection,
   gameStore,
   listPresetIds,
   listPresets,
@@ -33,6 +34,11 @@ const HIGHLIGHT_SCHEMA = {
       type: "string",
       description:
         "Optional short label shown near the highlighted element (e.g. 'Click here', 'Your hand').",
+    },
+    cardId: {
+      type: "string",
+      description:
+        "Optional card id to cue first when the student must select a card (e.g. '2_clubs'). The table glows that card before the play button.",
     },
   },
 } as const;
@@ -86,16 +92,18 @@ function applyHighlight(args: {
   playerId?: unknown;
   label?: unknown;
   actionId?: unknown;
+  cardId?: unknown;
 }) {
-  if (!args?.target && !args?.actionId) {
+  if (!args?.target && !args?.actionId && !args?.cardId) {
     gameStore.setHighlight(null);
     return null;
   }
   const highlight: Highlight = {
-    target: args.target ? String(args.target) : "actions",
+    target: args.target ? String(args.target) : args.cardId ? "hand" : "actions",
     playerId: args.playerId ? String(args.playerId) : undefined,
     label: args.label ? String(args.label) : undefined,
     actionId: args.actionId ? String(args.actionId) : undefined,
+    cardId: args.cardId ? String(args.cardId) : undefined,
   };
   gameStore.setHighlight(highlight);
   return highlight;
@@ -397,7 +405,7 @@ function TutorialTools() {
   useWebMCP({
     name: "coach",
     description:
-      "Tutorial one-shot: optional narrate + highlight, then await a human click. Returns the click result plus compact state — do not call get_game_state after. Prefer over separate narrate/highlight/await when teaching one step. With expectActionId, the click cue glows on that action button (defaults target to actions).",
+      "Tutorial one-shot: optional narrate + highlight, then await a human click. Returns the click result plus compact state — do not call get_game_state after. Prefer over separate narrate/highlight/await when teaching one step. With expectActionId, the click cue glows on that action button (defaults target to actions). If they must pick a card first, pass cardId so that card glows before the button."
     inputSchema: {
       type: "object",
       properties: {
@@ -409,6 +417,7 @@ function TutorialTools() {
         target: HIGHLIGHT_SCHEMA.properties.target,
         playerId: HIGHLIGHT_SCHEMA.properties.playerId,
         label: HIGHLIGHT_SCHEMA.properties.label,
+        cardId: HIGHLIGHT_SCHEMA.properties.cardId,
         expectActionId: {
           type: "string",
           description:
@@ -433,17 +442,27 @@ function TutorialTools() {
           : undefined;
         // Click cues always pin to the expected action button so labels are not
         // clipped on top seats and the student sees exactly what to press.
-        if (args?.target !== undefined || expectActionId) {
+        const cardId = args?.cardId ? String(args.cardId) : undefined;
+        const expected = expectActionId
+          ? gameStore
+              .getSnapshot()
+              ?.legalActions.find((a) => a.id === expectActionId)
+          : undefined;
+        const needsCard = actionNeedsCardSelection(expected);
+        if (args?.target !== undefined || expectActionId || cardId) {
           applyHighlight({
             target:
               args?.target !== undefined && args?.target !== null
                 ? args.target
-                : expectActionId
-                  ? "actions"
-                  : undefined,
+                : needsCard
+                  ? "hand"
+                  : expectActionId
+                    ? "actions"
+                    : undefined,
             playerId: args?.playerId,
             label: args?.label,
             actionId: expectActionId,
+            cardId,
           });
         }
         const result = await gameStore.resolveTutorialAwait({

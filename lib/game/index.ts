@@ -22,3 +22,4 @@ export {
   type PersistedGame,
 } from "./persistence";
 export * from "./poker";
+export * from "./tutorial-cue";

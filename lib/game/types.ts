@@ -266,6 +266,8 @@ export interface Highlight {
   label?: string;
   /** When set, glow this legal-action button; the label renders on that control (click cue). */
   actionId?: string;
+  /** Specific card to cue first when the expected action needs a selection. */
+  cardId?: string;
 }
 
 export interface NarrationEntry {

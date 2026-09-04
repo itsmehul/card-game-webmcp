@@ -33,6 +33,7 @@ export interface PlayingCardProps {
   rank?: Rank;
   suit?: Suit;
   selected?: boolean;
+  highlighted?: boolean;
   onClick?: () => void;
   size?: "sm" | "md";
   className?: string;
@@ -48,6 +49,7 @@ export function PlayingCard({
   rank,
   suit = "none",
   selected,
+  highlighted,
   onClick,
   size = "md",
   className,
@@ -81,6 +83,8 @@ export function PlayingCard({
         "relative shrink-0 rounded-lg shadow-md will-change-transform",
         "disabled:cursor-default",
         selected && "ring-2 ring-amber-400",
+        highlighted &&
+          "ring-2 ring-sky-400 shadow-[0_0_16px_4px_rgba(56,189,248,0.45)] animate-[highlight-pulse_2s_ease-in-out_infinite] z-10",
         className,
       )}
       aria-label={faceUp ? `${rank === "joker" ? "Joker" : rank} of ${suit}` : "Face-down card"}
